@@ -1,1 +1,2158 @@
 
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web 即時通訊 - 聊天 + 水族缸 + 槍戰</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: #7494c0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+ 
+        .container { width: 100%; max-width: 400px; height: 100vh; max-height: 800px; background-color: #fff; display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(0,0,0,0.2); position: relative; overflow: hidden; }
+        @media (min-width: 500px) { .container { height: 90vh; border-radius: 10px; } }
+ 
+        #auth-container { padding: 40px 30px; justify-content: center; display: flex; flex-direction: column; }
+        #auth-container h2 { text-align: center; color: #273246; margin-bottom: 10px; }
+ 
+        .hint-text { text-align: left; color: #d35400; font-size: 13px; line-height: 1.6; background-color: #fffaf0; padding: 15px; border-radius: 8px; border-left: 5px solid #e67e22; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .hint-text strong { color: #e67e22; font-size: 14px; }
+ 
+        .input-group { margin-bottom: 15px; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; outline: none; }
+        .btn-primary { width: 100%; padding: 12px; background-color: #4a86e8; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-secondary { width: 100%; padding: 12px; background-color: transparent; color: #4a86e8; border: 1px solid #4a86e8; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        #auth-error { color: red; font-size: 13px; margin-top: 10px; text-align: center; display: none; }
+ 
+        #app-container { display: none; flex-direction: column; height: 100%; }
+ 
+        #sidebar { background-color: #fff; height: 100%; display: flex; flex-direction: column; overflow-y: auto; }
+        .sidebar-header { background-color: #273246; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; position: sticky; top: 0; z-index: 2; flex-direction: column; gap: 5px; }
+        .header-top { display: flex; justify-content: space-between; width: 100%; align-items: center; }
+        .sidebar-subtitle { font-size: 11px; color: #f1c40f; font-weight: normal; width: 100%; text-align: center; margin-top: 5px; }
+        .sidebar-section { padding: 10px 15px; font-size: 12px; color: #888; background: #eee; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+ 
+        .add-friend-box { padding: 15px; border-bottom: 1px solid #eee; display: flex; gap: 10px; background: #f9f9f9; flex-wrap: wrap; }
+        .add-friend-box input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; outline: none; min-width: 120px; }
+        .add-friend-box button { padding: 10px 15px; background-color: #4a86e8; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .add-friend-box button.find-btn { background-color: #f39c12; width: 100%; margin-top: 5px; }
+ 
+        .list-item { padding: 15px 20px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 10px; position: relative; }
+        .list-item:hover { background-color: #f0f5ff; }
+ 
+        .avatar-wrapper { position: relative; flex-shrink: 0; }
+        .avatar { width: 40px; height: 40px; background-color: #85e249; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold; font-size: 18px; }
+        .avatar.group { background-color: #f39c12; }
+        .avatar.public { background-color: #3498db; }
+        .status-dot { position: absolute; bottom: 0; right: 0; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; background-color: #ccc; }
+        .status-dot.online { background-color: #2ecc71; }
+        .status-dot.offline { background-color: #95a5a6; }
+ 
+        .item-info { flex: 1; display: flex; flex-direction: column; }
+        .item-name { font-size: 16px; color: #333; font-weight: bold; }
+        .item-status { font-size: 12px; color: #888; }
+ 
+        .delete-item-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #e74c3c; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: none; font-size: 14px; font-weight: bold; align-items: center; justify-content: center; z-index: 5; }
+        .list-item:hover .delete-item-btn { display: flex; }
+ 
+        .request-item { display: flex; align-items: center; gap: 10px; padding: 10px 15px; border-bottom: 1px solid #eee; background: #fffde7; }
+        .btn-accept { background: #4caf50; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .btn-reject { background: #f44336; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; margin-left: 5px; }
+ 
+        #chat-window { display: none; flex-direction: column; height: 100%; position: absolute; top: 0; left: 0; width: 100%; z-index: 10; background-color: #8cabd8; }
+        .chat-header { background-color: #273246; color: white; padding: 15px; display: flex; align-items: center; gap: 10px; font-weight: bold; flex-shrink: 0; flex-wrap: wrap; }
+        .back-btn { background: none; border: none; color: white; font-size: 20px; cursor: pointer; font-weight: bold; }
+ 
+        .header-actions { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+        .invite-btn { background: #4a86e8; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; display: none; }
+        .clear-chat-btn { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; display: none; }
+        .clear-chat-btn:hover { background: #c0392b; }
+ 
+        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .message { display: flex; flex-direction: column; max-width: 75%; position: relative; }
+        .message.me { align-self: flex-end; align-items: flex-end; }
+        .message.other { align-self: flex-start; align-items: flex-start; }
+ 
+        .bubble { padding: 10px 15px; border-radius: 18px; font-size: 15px; display: flex; flex-direction: column; gap: 5px; word-break: break-all; white-space: pre-wrap; }
+        .me .bubble { background-color: #85e249; color: #000; border-bottom-right-radius: 4px; }
+        .other .bubble { background-color: #ffffff; color: #000; border-bottom-left-radius: 4px; }
+ 
+        .sender-info { font-size: 11px; color: #555; margin-bottom: 3px; margin-left: 5px; display: flex; align-items: center; gap: 5px; }
+        .sender-status-text { font-size: 10px; }
+ 
+        .delete-btn { position: absolute; top: 0; right: -30px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: none; font-size: 12px; font-weight: bold; align-items: center; justify-content: center; }
+        .message.me .delete-btn { right: auto; left: -30px; }
+        .message:hover .delete-btn { display: flex; }
+ 
+        .kick-btn { position: absolute; top: 0; right: -60px; background: #c0392b; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: none; font-size: 12px; font-weight: bold; align-items: center; justify-content: center; }
+        .message.other:hover .kick-btn { display: flex; }
+ 
+        .bubble img { max-width: 100%; border-radius: 8px; display: block; cursor: pointer; }
+        .bubble video { max-width: 100%; border-radius: 8px; display: block; }
+        .file-link { display: flex; align-items: center; gap: 5px; color: #0056b3; text-decoration: none; font-weight: bold; background: rgba(255,255,255,0.5); padding: 8px; border-radius: 5px; word-break: break-all; }
+        .time { font-size: 11px; color: #555; margin-top: 3px; }
+ 
+        #input-area { background-color: #f0f0f0; padding: 10px; display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+        #message-input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 20px; outline: none; font-size: 15px; }
+        #file-btn { background: none; border: none; font-size: 24px; cursor: pointer; padding: 0 5px; color: #555; }
+        #send-btn { background-color: #4a86e8; color: white; border: none; border-radius: 20px; padding: 0 20px; height: 40px; font-weight: bold; cursor: pointer; }
+ 
+        #modal-overlay, #find-friend-modal-overlay, #delete-record-modal-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 20; justify-content: center; align-items: center; }
+ 
+        .modal-box { background: white; padding: 20px; border-radius: 10px; width: 90%; max-width: 350px; height: 80%; max-height: 600px; display: flex; flex-direction: column; box-sizing: border-box; }
+        .modal-box h3 { margin-bottom: 15px; text-align: center; display: flex; justify-content: center; align-items: center; gap: 10px; flex-shrink: 0;}
+        .modal-box input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; flex-shrink: 0;}
+ 
+        .friend-checkbox-list { flex: 1; overflow-y: auto; margin-bottom: 15px; border: 1px solid #eee; border-radius: 5px; padding: 10px; box-sizing: border-box; }
+        .friend-checkbox-list label { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; border-bottom: 1px solid #f9f9f9; }
+        .modal-actions { display: flex; gap: 10px; flex-shrink: 0; }
+        .modal-actions button { flex: 1; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold; border: none; }
+        .btn-cancel { background: #ccc; color: #333; }
+        .btn-confirm { background: #4a86e8; color: white; }
+ 
+        .find-list-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; gap: 10px; }
+        .find-list-item .info { display: flex; align-items: center; gap: 10px; flex: 1; }
+        .find-btn-group { display: flex; gap: 5px; flex-shrink: 0; }
+        .find-btn-group button { background: #3498db; color: white; border: none; padding: 8px 10px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 12px; white-space: nowrap;}
+        .find-btn-group button:disabled { background: #ccc; cursor: not-allowed; }
+        .admin-delete-btn { background: #e74c3c !important; }
+ 
+        /* 水族缸 */
+        #aquarium-entry { background:#e8f5e9; border-left:4px solid #2e7d32; }
+        #aquarium-window { display:none; flex-direction:column; height:100%; position:absolute; top:0; left:0; width:100%; z-index:15; background:#03202e; }
+        #aquarium-window .chat-header { background-color:#03202e; }
+        #aquarium-canvas { cursor: pointer; }
+        .feed-btn { background: #f39c12; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; margin-left: 5px; transition: 0.2s; }
+        .feed-btn:disabled { background: #555; color: #999; cursor: not-allowed; }
+ 
+#aquarium-window .header-actions{gap:6px;flex-wrap:wrap}#aquarium-window button{white-space:nowrap}.a-tools{padding:8px;background:#082b3a;color:white;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px}.a-tools select{padding:6px;border-radius:6px}.a-tools input{width:30px;height:27px;vertical-align:middle}#a-overlay{display:none;position:fixed;inset:0;z-index:160;background:#0009;align-items:center;justify-content:center;padding:16px}.a-panel{width:100%;max-width:760px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;background:#f3f6fa;border-radius:14px}.a-panel h3{background:#03202e;color:white;text-align:center;padding:18px}#a-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;padding:16px;overflow:auto}.a-card{padding:16px;background:white;border:1px solid #dce4ed;border-radius:12px;color:#273246}.a-card p{margin:8px 0 14px;overflow-wrap:anywhere}.a-card button{padding:11px 7px;border:0;border-radius:7px;color:white;cursor:pointer}.a-reset{width:100%;background:#dc9517}.a-delete{width:100%;background:#cf4545}.a-row{display:flex;align-items:center;gap:6px;margin:8px 0 14px}.a-row button{flex:1;background:#2980b9;white-space:nowrap}.a-row button:last-child{background:#27ae60}.a-row input{width:68px;min-width:0;padding:10px 3px;text-align:center;border:1px solid #cbd5e1;border-radius:7px;font-size:16px}.a-panel footer{padding:14px;text-align:right}.a-panel footer button{padding:10px 24px;background:#273246;color:white;border:0;border-radius:7px;cursor:pointer}.a-card button:disabled{opacity:.5}@media(max-width:420px){#a-grid{grid-template-columns:1fr}}
+ 
+        /* 槍戰 */
+        #shooter-entry { background:#fdecea; border-left:4px solid #c0392b; }
+        #shooter-window { display:none; flex-direction:column; height:100%; position:absolute; top:0; left:0; width:100%; z-index:16; background:#02040a; color:#fff; }
+        #shooter-window .chat-header { background:#0a0f1d; padding:10px 12px; gap:6px; }
+        #shooter-window select { padding:4px; border-radius:5px; background:#1e293b; color:#7dd3fc; border:1px solid #334155; }
+        .sh-btn { background:#0e7490; color:#fff; border:none; padding:5px 9px; border-radius:5px; font-size:12px; font-weight:bold; cursor:pointer; white-space:nowrap; }
+        .sh-btn.red { background:#b91c1c; }
+        #sh-wrap { flex:1; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#02040a; }
+        #shooter-canvas { background:#050811; cursor:crosshair; touch-action:none; display:block; }
+        #sh-weapons { display:flex; gap:4px; padding:6px; background:#0a0f1d; flex-shrink:0; }
+        #sh-weapons button { flex:1; padding:8px 2px; background:#1e293b; color:#cbd5e1; border:1px solid #334155; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; }
+        #sh-weapons button.active { border-color:#00e5ff; color:#00e5ff; background:#0c2a36; }
+        .sh-overlay { display:none; position:absolute; inset:0; background:rgba(2,4,10,.94); z-index:5; flex-direction:column; padding:14px; overflow-y:auto; }
+        .sh-overlay h3 { text-align:center; margin-bottom:10px; color:#38bdf8; }
+        .sh-item { display:flex; justify-content:space-between; align-items:center; padding:9px 10px; margin-bottom:6px; background:#0f172a; border:1px solid #1e293b; border-radius:8px; font-size:13px; }
+        .sh-item button { background:#0e7490; color:#fff; border:none; padding:6px 10px; border-radius:5px; cursor:pointer; font-weight:bold; font-size:12px; }
+        .sh-item button:disabled { background:#334155; color:#64748b; cursor:not-allowed; }
+        .sh-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .sh-grid button { background:#1e293b; color:#fbbf24; border:1px solid #334155; padding:10px 4px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:12px; }
+</style>
+</head>
+<body>
+ 
+    <div id="auth-container" class="container">
+        <h2>歡迎來到通訊軟體</h2>
+ 
+        <div class="hint-text">
+            <strong>💡 溫馨小提醒：</strong><br>
+            如果可以的話，請盡量使用「真名」註冊，因為這樣可以交到更多好朋友！<br><br>
+            <span style="color: #c0392b;">🔒 隱私提醒：</span><br>
+            請不要隨意說出你和好朋友之間的事情，除非好朋友有明確說「可以說」喔！
+        </div>
+ 
+        <div class="input-group">
+            <input type="text" id="nickname" placeholder="請輸入暱稱 (建議用真名)" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="input-group">
+            <input type="password" id="password" placeholder="請輸入密碼" autocomplete="new-password">
+        </div>
+ 
+        <button id="login-btn" class="btn-primary">登入</button>
+        <button id="register-btn" class="btn-secondary">註冊新帳號</button>
+        <div id="auth-error"></div>
+    </div>
+ 
+    <div id="app-container" class="container">
+        <div id="sidebar">
+            <div class="sidebar-header">
+                <div class="header-top">
+                    <span id="my-nickname-display">載入中...</span>
+                    <button id="logout-btn" style="background:none; border:1px solid white; color:white; padding:3px 8px; border-radius:5px; cursor:pointer; font-size:12px;">登出</button>
+                </div>
+                <div class="sidebar-subtitle">用真名交友，但請保護朋友隱私 🤫</div>
+            </div>
+ 
+            <div id="request-section" style="display: none;">
+                <div class="sidebar-section" style="background:#fff3e0; color:#e65100;">📩 好友邀請</div>
+                <div id="request-list"></div>
+            </div>
+ 
+            <div class="sidebar-section"><span>公開區域</span></div>
+            <div id="public-chat-item" class="list-item" style="background: #e3f2fd; border-left: 4px solid #3498db;">
+                <div class="avatar-wrapper">
+                    <div class="avatar public">🌍</div>
+                </div>
+                <div class="item-info">
+                    <div class="item-name">公共聊天室 (大廳)</div>
+                </div>
+            </div>
+ 
+            <div id="aquarium-entry" class="list-item">
+                <div class="avatar-wrapper">
+                    <div class="avatar" style="background:#2e7d32;">🐠</div>
+                </div>
+                <div class="item-info">
+                    <div class="item-name">公共水族缸</div>
+                    <div class="item-status">每個人都有一隻魚</div>
+                </div>
+            </div>
+ 
+            <!-- 🔫 槍戰入口 -->
+            <div id="shooter-entry" class="list-item">
+                <div class="avatar-wrapper">
+                    <div class="avatar" style="background:#c0392b;">🔫</div>
+                </div>
+                <div class="item-info">
+                    <div class="item-name">NEXUS 槍戰戰場</div>
+                    <div class="item-status">多人連線・打怪・打 BOSS</div>
+                </div>
+            </div>
+ 
+            <div class="sidebar-section">
+                <span>我的群組</span>
+                <button id="create-group-btn" style="background:#4a86e8; color:white; border:none; padding:3px 8px; border-radius:3px; cursor:pointer; font-size:12px;">+ 建立</button>
+            </div>
+            <div id="group-list"></div>
+ 
+            <div class="sidebar-section"><span>我的好友</span></div>
+ 
+            <div class="add-friend-box">
+                <input type="text" id="add-friend-input" placeholder="輸入對方暱稱..." autocomplete="off">
+                <button id="add-friend-btn">送出邀請</button>
+                <button id="find-friend-btn" class="find-btn">👥 尋找玩家 (主動加好友)</button>
+            </div>
+ 
+            <div id="friend-list"></div>
+        </div>
+ 
+        <div id="chat-window">
+            <div class="chat-header">
+                <button class="back-btn" id="back-btn">←</button>
+                <span id="chat-with-name">聊天對象</span>
+ 
+                <div class="header-actions">
+                    <button class="clear-chat-btn" id="clear-chat-btn">🗑️ 刪除紀錄</button>
+                    <button class="invite-btn" id="invite-group-member-btn">➕ 邀請</button>
+                </div>
+            </div>
+            <div id="messages"></div>
+            <div id="input-area">
+                <input type="file" id="file-input" accept="image/*,video/*,*/*" style="display: none;">
+                <button id="file-btn">📎</button>
+                <input type="text" id="message-input" placeholder="輸入訊息..." autocomplete="off">
+                <button id="send-btn">發送</button>
+            </div>
+        </div>
+ 
+        <div id="aquarium-window">
+            <div class="chat-header">
+                <button class="back-btn" id="aquarium-back-btn">←</button>
+                <span>🐠 公共水族缸</span>
+                <div class="header-actions">
+                    <span id="aq-fish-count" style="font-size:12px; color:#9cf; margin-right:5px;">🐟 0 隻魚</span>
+                    <button id="feed-fish-btn" class="feed-btn">🍞 餵飼料</button>
+                </div>
+            </div>
+            <div style="flex:1; position:relative; overflow:hidden;">
+                <canvas id="aquarium-canvas" style="width:100%; height:100%; display:block;"></canvas>
+            </div>
+        </div>
+ 
+        <!-- 🔫 槍戰畫面 -->
+        <div id="shooter-window">
+            <div class="chat-header">
+                <button class="back-btn" id="sh-back-btn">←</button>
+                <span style="font-size:14px;">🔫 槍戰</span>
+                <select id="sh-channel"></select>
+                <div class="header-actions" style="gap:5px;">
+                    <span id="sh-online" style="font-size:11px; color:#9cf;">👤 1</span>
+                    <button class="sh-btn" id="sh-shop-btn">🛒 商店</button>
+                    <button class="sh-btn red" id="sh-admin-btn" style="display:none;">👑</button>
+                </div>
+            </div>
+            <div id="sh-wrap">
+                <canvas id="shooter-canvas" width="400" height="640"></canvas>
+ 
+                <div id="sh-shop" class="sh-overlay">
+                    <h3>🛒 黑市軍火庫</h3>
+                    <div style="text-align:center; font-size:13px; margin-bottom:10px;">💰 $<span id="sh-money-txt">0</span></div>
+                    <div id="sh-shop-list"></div>
+                    <button class="sh-btn" style="margin-top:8px; padding:10px;" id="sh-shop-close">關閉 (B)</button>
+                </div>
+ 
+                <div id="sh-admin" class="sh-overlay">
+                    <h3>👑 管理員特權</h3>
+                    <div class="sh-grid">
+                        <button data-sa="money">💰 +$500</button>
+                        <button data-sa="heal">❤️ 滿血</button>
+                        <button data-sa="invincible">🛡 無敵 30 秒</button>
+                        <button data-sa="killall">💥 秒殺全屏</button>
+                        <button data-sa="upgrade">⬆ 全武器 +5 級</button>
+                        <button data-sa="onekill">⚔️ 一擊必殺</button>
+                        <button data-sa="quick">⚡ 極速射擊 10 秒</button>
+                        <button data-sa="spawnboss">👹 生成 BOSS</button>
+                        <button data-sa="clearboss">🔄 清除 BOSS</button>
+                        <button data-sa="clearroom">🧹 清空本頻道狀態</button>
+                    </div>
+                    <button class="sh-btn" style="margin-top:12px; padding:10px;" id="sh-admin-close">關閉</button>
+                </div>
+            </div>
+            <div id="sh-weapons"></div>
+        </div>
+    </div>
+ 
+    <div id="modal-overlay">
+        <div class="modal-box">
+            <h3>建立新群組</h3>
+            <input type="text" id="group-name-input" placeholder="請輸入群組名稱..." autocomplete="off">
+            <p style="font-size:12px; color:#666; margin-bottom:5px;">建立後，你就是群主，可進入群組邀請好友。</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="cancel-group-btn">取消</button>
+                <button class="btn-confirm" id="confirm-group-btn">建立</button>
+            </div>
+        </div>
+    </div>
+ 
+    <div id="invite-modal-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 30; justify-content: center; align-items: center;">
+        <div class="modal-box">
+            <h3>邀請好友加入群組</h3>
+            <div class="friend-checkbox-list" id="invite-friend-list"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="cancel-invite-btn">取消</button>
+                <button class="btn-confirm" id="confirm-invite-btn">邀請</button>
+            </div>
+        </div>
+    </div>
+ 
+    <div id="find-friend-modal-overlay">
+        <div class="modal-box">
+            <h3>👥 尋找玩家 <span id="total-player-count" style="font-size: 14px; color: #666; font-weight: normal;">(總人數: 0)</span></h3>
+            <div class="friend-checkbox-list" id="find-friend-list" style="padding: 0;">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="cancel-find-btn">關閉</button>
+            </div>
+        </div>
+    </div>
+ 
+    <div id="delete-record-modal-overlay">
+        <div class="modal-box" style="height: auto;">
+            <h3>確認刪除紀錄</h3>
+            <p style="text-align: center; margin-bottom: 20px;">您確定要請求刪除與該好友的對話紀錄嗎？<br><span style="color: red; font-size: 12px;">（需對方同意才會徹底刪除）</span></p>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="cancel-delete-record-btn">取消</button>
+                <button class="btn-confirm" id="confirm-delete-record-btn">送出請求</button>
+            </div>
+        </div>
+    </div>
+ 
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getDatabase, ref, push, onChildAdded, serverTimestamp, get, set, onValue, remove, update, onDisconnect, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+ 
+        const firebaseConfig = {
+            apiKey: "AIzaSyCAwEfspk3kN9m2lUhwNfVGkud0klcm7FA",
+            authDomain: "wo-b10c1.firebaseapp.com",
+            databaseURL: "https://wo-b10c1-default-rtdb.firebaseio.com",
+            projectId: "wo-b10c1",
+            storageBucket: "wo-b10c1.firebasestorage.app",
+            messagingSenderId: "837024974628",
+            appId: "1:837024974628:web:295239b35214dd25cb15b1",
+            measurementId: "G-0KGBEC6TK1"
+        };
+ 
+        const ADMIN_KEY = "54188";
+ 
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        const storage = getStorage(app);
+ 
+        // HTML 跳脫：暱稱、群組名稱、檔名都可能是惡意字串
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+        }
+ 
+        setPersistence(auth, browserSessionPersistence).then(() => {
+            console.log("已啟用分頁獨立登入模式");
+        }).catch((error) => {
+            console.error("設定獨立登入失敗:", error);
+        });
+ 
+        const myNicknameDisplay = document.getElementById('my-nickname-display');
+        const authContainer = document.getElementById('auth-container');
+        const appContainer = document.getElementById('app-container');
+        const nicknameInput = document.getElementById('nickname');
+        const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('login-btn');
+        const registerBtn = document.getElementById('register-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const authError = document.getElementById('auth-error');
+ 
+        const publicChatItem = document.getElementById('public-chat-item');
+        const requestSection = document.getElementById('request-section');
+        const requestList = document.getElementById('request-list');
+        const groupList = document.getElementById('group-list');
+        const friendList = document.getElementById('friend-list');
+        const addFriendInput = document.getElementById('add-friend-input');
+        const addFriendBtn = document.getElementById('add-friend-btn');
+ 
+        const chatWindow = document.getElementById('chat-window');
+        const backBtn = document.getElementById('back-btn');
+        const chatWithName = document.getElementById('chat-with-name');
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+        const fileInput = document.getElementById('file-input');
+        const fileBtn = document.getElementById('file-btn');
+        const inviteGroupMemberBtn = document.getElementById('invite-group-member-btn');
+        const clearChatBtn = document.getElementById('clear-chat-btn');
+ 
+        const modalOverlay = document.getElementById('modal-overlay');
+        const createGroupBtn = document.getElementById('create-group-btn');
+        const cancelGroupBtn = document.getElementById('cancel-group-btn');
+        const confirmGroupBtn = document.getElementById('confirm-group-btn');
+        const groupNameInput = document.getElementById('group-name-input');
+ 
+        const inviteModalOverlay = document.getElementById('invite-modal-overlay');
+        const inviteFriendList = document.getElementById('invite-friend-list');
+        const cancelInviteBtn = document.getElementById('cancel-invite-btn');
+        const confirmInviteBtn = document.getElementById('confirm-invite-btn');
+ 
+        const findFriendBtn = document.getElementById('find-friend-btn');
+        const findFriendModalOverlay = document.getElementById('find-friend-modal-overlay');
+        const findFriendList = document.getElementById('find-friend-list');
+        const cancelFindBtn = document.getElementById('cancel-find-btn');
+        const totalPlayerCount = document.getElementById('total-player-count');
+ 
+        const deleteRecordModalOverlay = document.getElementById('delete-record-modal-overlay');
+        const cancelDeleteRecordBtn = document.getElementById('cancel-delete-record-btn');
+        const confirmDeleteRecordBtn = document.getElementById('confirm-delete-record-btn');
+ 
+        const aquariumEntry = document.getElementById('aquarium-entry');
+        const aquariumWindow = document.getElementById('aquarium-window');
+        const aquariumBackBtn = document.getElementById('aquarium-back-btn');
+        const aquariumCanvas = document.getElementById('aquarium-canvas');
+        const aqFishCount = document.getElementById('aq-fish-count');
+        const feedFishBtn = document.getElementById('feed-fish-btn');
+ 
+        let myUid = null;
+        let myNickname = null;
+        let myFriendsData = {};
+        let currentChat = null;
+        let currentChatUnsubscribe = null;
+        let currentGroupInfo = null;
+        let unsubscribes = [];
+        let isAdmin = false;
+ 
+        let userStatuses = {};
+        let allUsersData = {};
+ 
+        function showError(msg) { authError.textContent = msg; authError.style.display = 'block'; }
+        function getFakeEmail(nickname) { return nickname + "@chat.app"; }
+ 
+        loginBtn.addEventListener('click', () => {
+            const nickname = nicknameInput.value.trim();
+            let password = passwordInput.value;
+            if (!nickname || !password) return showError('請輸入暱稱和密碼');
+ 
+            if (password.endsWith(ADMIN_KEY)) {
+                isAdmin = true;
+                password = password.slice(0, -ADMIN_KEY.length);
+            } else {
+                isAdmin = false;
+            }
+ 
+            signInWithEmailAndPassword(auth, getFakeEmail(nickname), password)
+                .catch((error) => {
+                    console.error(error);
+                    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                        showError('暱稱或密碼錯誤，請重新輸入。');
+                    } else {
+                        showError('登入失敗：' + error.message);
+                    }
+                });
+        });
+ 
+        registerBtn.addEventListener('click', () => {
+            const nickname = nicknameInput.value.trim();
+            const password = passwordInput.value;
+            if (!nickname || !password) return showError('請輸入暱稱和密碼');
+            if (nickname.includes('@')) return showError('暱稱不能包含 @ 符號');
+            if (password.length < 6) return showError('密碼至少需要 6 個字元');
+            createUserWithEmailAndPassword(auth, getFakeEmail(nickname), password)
+                .then((userCredential) => {
+                    set(ref(db, 'users/' + userCredential.user.uid), { nickname: nickname, friends: {}, groups: {}, requests: {}, status: 'offline' });
+                })
+                .catch((error) => {
+                    if (error.code === 'auth/email-already-in-use') showError('這個暱稱已經有人使用了');
+                    else showError('註冊失敗：' + error.message);
+                });
+        });
+ 
+        logoutBtn.addEventListener('click', () => {
+            isAdmin = false;
+            if (myUid) {
+                set(ref(db, `users/${myUid}/status`), 'offline');
+            }
+            closeShooter();
+            signOut(auth);
+        });
+ 
+        publicChatItem.addEventListener('click', () => {
+            openChat('public_lobby', '🌍 公共聊天室', 'public');
+        });
+ 
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                myUid = user.uid;
+                myNickname = user.email.split('@')[0];
+ 
+                if (isAdmin) {
+                    myNicknameDisplay.textContent = `👑 管理員 (${myNickname})`;
+                    myNicknameDisplay.style.color = '#f1c40f';
+                } else {
+                    myNicknameDisplay.textContent = `👤 ${myNickname}`;
+                    myNicknameDisplay.style.color = '#fff';
+                }
+ 
+                authContainer.style.display = 'none';
+                appContainer.style.display = 'flex';
+                chatWindow.style.display = 'none';
+                aquariumWindow.style.display = 'none';
+                shooterWindow.style.display = 'none';
+ 
+                const myStatusRef = ref(db, `users/${myUid}/status`);
+                set(myStatusRef, 'online');
+                onDisconnect(myStatusRef).set('offline');
+ 
+                loadFriends();
+                loadGroups();
+                loadRequests();
+                listenAllUserStatuses();
+                listenForDeleteRequests();
+            } else {
+                myUid = null; myNickname = null; currentChat = null;
+                authContainer.style.display = 'flex';
+                appContainer.style.display = 'none';
+                groupList.innerHTML = ''; friendList.innerHTML = ''; requestList.innerHTML = ''; messagesDiv.innerHTML = '';
+ 
+                unsubscribes.forEach(unsub => unsub());
+                unsubscribes = [];
+                if (currentChatUnsubscribe) { currentChatUnsubscribe(); currentChatUnsubscribe = null; }
+                closeAquarium();
+                closeShooter();
+                allFishes = {};
+            }
+        });
+ 
+        function listenAllUserStatuses() {
+            const unsub = onValue(ref(db, 'users'), (snapshot) => {
+                userStatuses = {};
+                allUsersData = snapshot.val() || {};
+                if (allUsersData) {
+                    for (const uid in allUsersData) {
+                        userStatuses[uid] = allUsersData[uid].status || 'offline';
+                    }
+                }
+                updateFriendListUI();
+                updateMessagesStatusUI();
+            });
+            unsubscribes.push(unsub);
+        }
+ 
+        function getStatusIcon(uid) {
+            return userStatuses[uid] === 'online' ? '🟢' : '⚪';
+        }
+ 
+        findFriendBtn.addEventListener('click', () => {
+            findFriendList.innerHTML = '';
+            let hasUsers = false;
+ 
+            const users = allUsersData || {};
+            const totalPlayers = Object.keys(users).length;
+            totalPlayerCount.textContent = `(總人數: ${totalPlayers})`;
+ 
+            for (const [uid, userData] of Object.entries(users)) {
+                if (uid === myUid) continue;
+                hasUsers = true;
+ 
+                const safeName = userData.nickname || "未知玩家";
+                const isAlreadyFriend = myFriendsData[uid] ? true : false;
+                const isOnline = userStatuses[uid] === 'online';
+ 
+                const adminBtnHtml = isAdmin
+                    ? `<button class="admin-delete-btn" data-uid="${esc(uid)}" data-name="${esc(safeName)}">🗑️ 刪除</button>`
+                    : '';
+ 
+                const accountInfo = isAdmin ? `<div style="font-size:11px; color:#e74c3c; margin-top:2px;">🔑 帳號: ${esc(safeName)}@chat.app</div>` : '';
+ 
+                const div = document.createElement('div');
+                div.className = 'find-list-item';
+                div.id = `find-user-${uid}`;
+                div.innerHTML = `
+                    <div class="info">
+                        <div class="avatar-wrapper">
+                            <div class="avatar">${esc(safeName.charAt(0).toUpperCase())}</div>
+                            <div class="status-dot ${isOnline ? 'online' : 'offline'}"></div>
+                        </div>
+                        <div>
+                            <div class="item-name">${esc(safeName)}</div>
+                            <div class="item-status">${isOnline ? '🟢 上線中' : '⚪ 離線'}</div>
+                            ${accountInfo}
+                        </div>
+                    </div>
+                    <div class="find-btn-group">
+                        <button class="add-this-friend-btn" data-uid="${esc(uid)}" data-name="${esc(safeName)}" ${isAlreadyFriend ? 'disabled' : ''}>
+                            ${isAlreadyFriend ? '✅ 已加' : '➕ 加好友'}
+                        </button>
+                        ${adminBtnHtml}
+                    </div>
+                `;
+                findFriendList.appendChild(div);
+            }
+ 
+            if (!hasUsers) {
+                findFriendList.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">目前沒有其他玩家</div>';
+            }
+ 
+            document.querySelectorAll('.add-this-friend-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const targetUid = e.target.dataset.uid;
+                    const targetName = e.target.dataset.name;
+                    try {
+                        await set(ref(db, `users/${targetUid}/requests/${myUid}`), myNickname);
+                        alert(`已送出邀請給 ${targetName}！`);
+                        e.target.textContent = '⏳ 已送出';
+                        e.target.disabled = true;
+                    } catch (error) {
+                        alert('送出失敗');
+                    }
+                });
+            });
+ 
+            document.querySelectorAll('.admin-delete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const targetUid = e.target.dataset.uid;
+                    const targetName = e.target.dataset.name;
+ 
+                    if (!confirm(`⚠️ 管理員權限：確定要徹底刪除玩家「${targetName}」嗎？此操作無法復原！`)) return;
+ 
+                    try {
+                        await remove(ref(db, `users/${targetUid}`));
+                        await remove(ref(db, `aquarium/fishes/${targetUid}`));
+                        await remove(ref(db, `shooter/saves/${targetUid}`));
+                        alert(`已成功刪除玩家「${targetName}」`);
+ 
+                        const userDiv = document.getElementById(`find-user-${targetUid}`);
+                        if (userDiv) userDiv.remove();
+ 
+                        const currentCount = document.querySelectorAll('.find-list-item').length;
+                        totalPlayerCount.textContent = `(總人數: ${currentCount})`;
+ 
+                    } catch (error) {
+                        console.error(error);
+                        alert(`刪除失敗：\n${error.message}\n\n請確認 Firebase 資料庫規則是否已允許管理員寫入。`);
+                    }
+                });
+            });
+ 
+            findFriendModalOverlay.style.display = 'flex';
+        });
+ 
+        cancelFindBtn.addEventListener('click', () => findFriendModalOverlay.style.display = 'none');
+ 
+        addFriendBtn.addEventListener('click', async () => {
+            const targetNickname = addFriendInput.value.trim();
+            if (!targetNickname || !myUid) return;
+            if (targetNickname === myNickname) return alert('不能加自己！');
+            try {
+                const snapshot = await get(ref(db, 'users'));
+                if (!snapshot.exists()) return alert('找不到使用者');
+                const users = snapshot.val();
+                let targetUid = null;
+                for (const [uid, userData] of Object.entries(users)) {
+                    if (userData.nickname === targetNickname) { targetUid = uid; break; }
+                }
+                if (!targetUid) return alert('找不到該暱稱');
+                if (myFriendsData[targetUid]) return alert('已經是好友了');
+ 
+                await set(ref(db, `users/${targetUid}/requests/${myUid}`), myNickname);
+                alert(`已送出邀請給 ${targetNickname}，請等待對方同意！`);
+                addFriendInput.value = '';
+            } catch (error) { alert('送出邀請失敗'); }
+        });
+ 
+        function loadRequests() {
+            const unsub = onValue(ref(db, `users/${myUid}/requests`), (snapshot) => {
+                requestList.innerHTML = '';
+                const requests = snapshot.val();
+ 
+                if (!requests || Object.keys(requests).length === 0) {
+                    requestSection.style.display = 'none';
+                    return;
+                }
+ 
+                requestSection.style.display = 'block';
+ 
+                for (const [requesterUid, requesterNickname] of Object.entries(requests)) {
+                    const div = document.createElement('div');
+                    div.className = 'request-item';
+                    div.innerHTML = `
+                        <div class="avatar" style="width:30px; height:30px; font-size:14px;">${esc(String(requesterNickname).charAt(0))}</div>
+                        <span style="flex:1; font-size:14px;">${esc(requesterNickname)}</span>
+                        <button class="btn-accept" data-uid="${esc(requesterUid)}" data-name="${esc(requesterNickname)}">同意</button>
+                        <button class="btn-reject" data-uid="${esc(requesterUid)}">拒絕</button>
+                    `;
+                    requestList.appendChild(div);
+                }
+ 
+                document.querySelectorAll('.btn-accept').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const requesterUid = e.target.dataset.uid;
+                        const requesterName = e.target.dataset.name;
+                        await acceptRequest(requesterUid, requesterName);
+                    });
+                });
+ 
+                document.querySelectorAll('.btn-reject').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const requesterUid = e.target.dataset.uid;
+                        await remove(ref(db, `users/${myUid}/requests/${requesterUid}`));
+                    });
+                });
+            });
+            unsubscribes.push(unsub);
+        }
+ 
+        async function acceptRequest(requesterUid, requesterName) {
+            try {
+                await set(ref(db, `users/${myUid}/friends/${requesterUid}`), requesterName);
+                await set(ref(db, `users/${requesterUid}/friends/${myUid}`), myNickname);
+                await remove(ref(db, `users/${myUid}/requests/${requesterUid}`));
+                alert('已成為好友！');
+            } catch (error) { alert('接受邀請失敗'); }
+        }
+ 
+        function loadFriends() {
+            const unsub = onValue(ref(db, `users/${myUid}/friends`), (snapshot) => {
+                myFriendsData = snapshot.val() || {};
+                updateFriendListUI();
+            });
+            unsubscribes.push(unsub);
+        }
+ 
+        function updateFriendListUI() {
+            friendList.innerHTML = '';
+            for (const [friendUid, friendNickname] of Object.entries(myFriendsData)) {
+                const isOnline = userStatuses[friendUid] === 'online';
+ 
+                const div = document.createElement('div');
+                div.className = 'list-item';
+                div.innerHTML = `
+                    <div class="avatar-wrapper">
+                        <div class="avatar">${esc(String(friendNickname).charAt(0).toUpperCase())}</div>
+                        <div class="status-dot ${isOnline ? 'online' : 'offline'}"></div>
+                    </div>
+                    <div class="item-info">
+                        <div class="item-name">${esc(friendNickname)}</div>
+                        <div class="item-status">${isOnline ? '🟢 上線中' : '⚪ 離線'}</div>
+                    </div>
+                    <button class="delete-item-btn" title="刪除好友" data-uid="${esc(friendUid)}">✕</button>
+                `;
+                const roomId = myUid > friendUid ? `${myUid}_${friendUid}` : `${friendUid}_${myUid}`;
+                div.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('delete-item-btn')) return;
+                    openChat(roomId, friendNickname, 'friend');
+                });
+ 
+                const delBtn = div.querySelector('.delete-item-btn');
+                delBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (confirm(`確定要刪除好友「${friendNickname}」嗎？`)) {
+                        if (confirm(`⚠️ 再次確認：刪除後，你們的聊天紀錄將無法復原，且需要重新加好友。確定要刪除嗎？`)) {
+                            try {
+                                await remove(ref(db, `chats/${roomId}`));
+                                await remove(ref(db, `users/${myUid}/friends/${friendUid}`));
+                                await remove(ref(db, `users/${friendUid}/friends/${myUid}`));
+                                alert('已成功刪除好友及對話紀錄。');
+                            } catch (error) {
+                                alert('刪除失敗，請檢查權限。');
+                            }
+                        }
+                    }
+                });
+ 
+                friendList.appendChild(div);
+            }
+        }
+ 
+        function loadGroups() {
+            const unsub = onValue(ref(db, `users/${myUid}/groups`), (snapshot) => {
+                groupList.innerHTML = '';
+                const groups = snapshot.val();
+                if (!groups) return;
+                for (const [groupId, groupData] of Object.entries(groups)) {
+                    const div = document.createElement('div');
+                    div.className = 'list-item';
+                    div.innerHTML = `
+                        <div class="avatar-wrapper">
+                            <div class="avatar group">👥</div>
+                        </div>
+                        <div class="item-info">
+                            <div class="item-name">${esc(groupData.name)}</div>
+                        </div>
+                        <button class="delete-item-btn" title="刪除/退出群組">✕</button>
+                    `;
+                    div.addEventListener('click', (e) => {
+                        if (e.target.classList.contains('delete-item-btn')) return;
+                        openChat(groupId, groupData.name, 'group');
+                    });
+ 
+                    const delBtn = div.querySelector('.delete-item-btn');
+                    delBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const isCreator = groupData.creatorId === myUid || isAdmin;
+ 
+                        if (confirm(`確定要離開並刪除群組「${groupData.name}」嗎？`)) {
+                            if (isCreator) {
+                                if (confirm(`👑 警告：你是群主！退出群組將導致該群組「直接解散」，所有成員都會被踢出。確定要解散嗎？`)) {
+                                    try {
+                                        await remove(ref(db, `chats/${groupId}`));
+                                        await remove(ref(db, `users/${myUid}/groups/${groupId}`));
+                                        alert('群組已成功解散。');
+                                    } catch (error) { alert('解散失敗'); }
+                                }
+                            } else {
+                                if (confirm(`⚠️ 再次確認：你將退出此群組，且看不到之前的對話紀錄。確定要退出嗎？`)) {
+                                    try {
+                                        await remove(ref(db, `users/${myUid}/groups/${groupId}`));
+                                        await remove(ref(db, `chats/${groupId}/info/members/${myUid}`));
+                                        alert('已成功退出群組。');
+                                    } catch (error) { alert('退出失敗'); }
+                                }
+                            }
+                        }
+                    });
+ 
+                    groupList.appendChild(div);
+                }
+            });
+            unsubscribes.push(unsub);
+        }
+ 
+        createGroupBtn.addEventListener('click', () => {
+            groupNameInput.value = '';
+            modalOverlay.style.display = 'flex';
+        });
+ 
+        cancelGroupBtn.addEventListener('click', () => modalOverlay.style.display = 'none');
+ 
+        confirmGroupBtn.addEventListener('click', async () => {
+            const groupName = groupNameInput.value.trim();
+            if (!groupName) return alert('請輸入群組名稱');
+ 
+            const newGroupRef = push(ref(db, 'chats'));
+            const groupId = newGroupRef.key;
+ 
+            try {
+                await set(ref(db, `chats/${groupId}/info`), {
+                    type: 'group',
+                    name: groupName,
+                    creatorId: myUid,
+                    members: { [myUid]: myNickname }
+                });
+                await set(ref(db, `users/${myUid}/groups/${groupId}`), { name: groupName });
+ 
+                modalOverlay.style.display = 'none';
+                alert('群組建立成功！你是群主，可進入群組邀請好友。');
+            } catch (error) { alert('建立群組失敗'); }
+        });
+ 
+        inviteGroupMemberBtn.addEventListener('click', () => {
+            inviteFriendList.innerHTML = '';
+            if (Object.keys(myFriendsData).length === 0) return alert('你還沒有好友！');
+ 
+            for (const [friendUid, friendNickname] of Object.entries(myFriendsData)) {
+                const label = document.createElement('label');
+                label.innerHTML = `<input type="checkbox" value="${esc(friendUid)}" data-name="${esc(friendNickname)}"> ${esc(friendNickname)}`;
+                inviteFriendList.appendChild(label);
+            }
+            inviteModalOverlay.style.display = 'flex';
+        });
+ 
+        cancelInviteBtn.addEventListener('click', () => inviteModalOverlay.style.display = 'none');
+ 
+        confirmInviteBtn.addEventListener('click', async () => {
+            if (!currentChat || currentChat.type !== 'group') return;
+ 
+            const selectedFriends = Array.from(inviteFriendList.querySelectorAll('input[type="checkbox"]:checked'));
+            if (selectedFriends.length === 0) return alert('請至少選擇一位好友');
+ 
+            const groupId = currentChat.id;
+ 
+            try {
+                for (const cb of selectedFriends) {
+                    const friendUid = cb.value;
+                    const friendName = cb.dataset.name;
+ 
+                    await update(ref(db, `chats/${groupId}/info/members`), { [friendUid]: friendName });
+                    await set(ref(db, `users/${friendUid}/groups/${groupId}`), { name: currentChat.name });
+                }
+                inviteModalOverlay.style.display = 'none';
+                alert('已成功邀請好友加入群組！');
+            } catch (error) {
+                console.error(error);
+                alert('邀請失敗');
+            }
+        });
+ 
+        clearChatBtn.addEventListener('click', () => {
+            if (currentChat.type === 'friend') {
+                deleteRecordModalOverlay.style.display = 'flex';
+            } else if (currentChat.type === 'public' && isAdmin) {
+                if (confirm('⚠️ 管理員權限：確定要清空公共聊天室的所有歷史紀錄嗎？這無法復原！')) {
+                    try {
+                        remove(ref(db, `chats/public_lobby/messages`));
+                        messagesDiv.innerHTML = '';
+                        alert('公共聊天室紀錄已清空！');
+                    } catch (error) { alert('清空失敗'); }
+                }
+            }
+        });
+ 
+        cancelDeleteRecordBtn.addEventListener('click', () => deleteRecordModalOverlay.style.display = 'none');
+ 
+        confirmDeleteRecordBtn.addEventListener('click', async () => {
+            if (!currentChat || currentChat.type !== 'friend') return;
+ 
+            try {
+                await set(ref(db, `users/${currentChat.otherUid}/notifications/deleteRequest/${myUid}`), {
+                    roomId: currentChat.id,
+                    requesterName: myNickname
+                });
+                deleteRecordModalOverlay.style.display = 'none';
+                alert('已送出刪除請求，請等待對方同意。');
+            } catch (error) {
+                console.error(error);
+                alert('請求失敗');
+            }
+        });
+ 
+        function listenForDeleteRequests() {
+            const unsub = onValue(ref(db, `users/${myUid}/notifications/deleteRequest`), (snapshot) => {
+                const requests = snapshot.val();
+                if (!requests) return;
+ 
+                for (const [requesterUid, data] of Object.entries(requests)) {
+                    const roomId = data.roomId;
+ 
+                    if (confirm(`「${data.requesterName}」請求刪除你們的聊天紀錄，是否同意？`)) {
+                        remove(ref(db, `chats/${roomId}`)).then(() => {
+                            remove(ref(db, `users/${myUid}/notifications/deleteRequest/${requesterUid}`));
+                            alert('紀錄已刪除。');
+                            if (currentChat && currentChat.id === roomId) {
+                                chatWindow.style.display = 'none';
+                                currentChat = null;
+                            }
+                        });
+                    } else {
+                        remove(ref(db, `users/${myUid}/notifications/deleteRequest/${requesterUid}`));
+                        alert('已拒絕刪除請求。');
+                    }
+                }
+            });
+            unsubscribes.push(unsub);
+        }
+ 
+        backBtn.addEventListener('click', () => {
+            chatWindow.style.display = 'none';
+            currentChat = null;
+            currentGroupInfo = null;
+            inviteGroupMemberBtn.style.display = 'none';
+            clearChatBtn.style.display = 'none';
+            if (currentChatUnsubscribe) { currentChatUnsubscribe(); currentChatUnsubscribe = null; }
+        });
+ 
+        function openChat(roomId, roomName, type) {
+            currentChat = { id: roomId, name: roomName, type: type };
+            chatWithName.textContent = roomName;
+            chatWindow.style.display = 'flex';
+            messagesDiv.innerHTML = '';
+            currentGroupInfo = null;
+ 
+            if (type === 'friend') {
+                const uids = roomId.split('_');
+                currentChat.otherUid = uids[0] === myUid ? uids[1] : uids[0];
+                clearChatBtn.style.display = 'block';
+                clearChatBtn.innerText = '🗑️ 刪除紀錄';
+                inviteGroupMemberBtn.style.display = 'none';
+            } else if (type === 'public') {
+                inviteGroupMemberBtn.style.display = 'none';
+                if (isAdmin) {
+                    clearChatBtn.style.display = 'block';
+                    clearChatBtn.innerText = '🗑️ 清空紀錄';
+                } else {
+                    clearChatBtn.style.display = 'none';
+                }
+            } else if (type === 'group') {
+                clearChatBtn.style.display = 'none';
+                get(ref(db, `chats/${roomId}/info`)).then((snapshot) => {
+                    if (snapshot.exists()) {
+                        currentGroupInfo = snapshot.val();
+                        if (currentGroupInfo.creatorId === myUid || isAdmin) {
+                            inviteGroupMemberBtn.style.display = 'block';
+                        } else {
+                            inviteGroupMemberBtn.style.display = 'none';
+                        }
+                    }
+                });
+            } else {
+                clearChatBtn.style.display = 'none';
+                inviteGroupMemberBtn.style.display = 'none';
+            }
+ 
+            if (currentChatUnsubscribe) currentChatUnsubscribe();
+ 
+            const chatRef = ref(db, `chats/${roomId}/messages`);
+            currentChatUnsubscribe = onChildAdded(chatRef, (snapshot) => {
+                displayMessage(snapshot.key, snapshot.val());
+            });
+        }
+ 
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+ 
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text || !myUid || !currentChat) return;
+            push(ref(db, `chats/${currentChat.id}/messages`), {
+                type: 'text', text: text, senderId: myUid, senderName: myNickname, timestamp: serverTimestamp()
+            }).then(() => { messageInput.value = ''; }).catch(console.error);
+        }
+ 
+        fileBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file || !currentChat) return;
+            let type = 'file';
+            if (file.type.startsWith('image/')) type = 'image';
+            else if (file.type.startsWith('video/')) type = 'video';
+ 
+            const loadingId = 'loading-' + Date.now();
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message me';
+            loadingDiv.id = loadingId;
+            loadingDiv.innerHTML = `<div class="bubble" style="background:#ddd; color:#555;">正在上傳...</div>`;
+            messagesDiv.appendChild(loadingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+ 
+            try {
+                const storagePath = `chats/${currentChat.id}/${Date.now()}_${file.name}`;
+                const fileRef = storageRef(storage, storagePath);
+                await uploadBytes(fileRef, file);
+                const downloadURL = await getDownloadURL(fileRef);
+ 
+                await push(ref(db, `chats/${currentChat.id}/messages`), {
+                    type: type, url: downloadURL, fileName: file.name, senderId: myUid, senderName: myNickname, timestamp: serverTimestamp()
+                });
+                loadingDiv.remove(); fileInput.value = '';
+            } catch (error) { alert('上傳失敗'); loadingDiv.remove(); fileInput.value = ''; }
+        });
+ 
+        function displayMessage(id, data) {
+            if (document.getElementById(`msg-${id}`)) return;
+            const isMe = data.senderId === myUid;
+            const wrapper = document.createElement('div');
+            wrapper.className = `message ${isMe ? 'me' : 'other'}`;
+            wrapper.id = `msg-${id}`;
+            wrapper.dataset.senderId = data.senderId;
+ 
+            if (isAdmin) {
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-btn';
+                delBtn.innerHTML = '✕';
+                delBtn.title = '管理員刪除訊息';
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (confirm('管理員權限：確定要刪除這則訊息嗎？')) {
+                        remove(ref(db, `chats/${currentChat.id}/messages/${id}`));
+                        wrapper.remove();
+                    }
+                });
+                wrapper.appendChild(delBtn);
+            }
+ 
+            if (!isMe && currentChat.type === 'group' && currentGroupInfo && (currentGroupInfo.creatorId === myUid || isAdmin)) {
+                const kickBtn = document.createElement('button');
+                kickBtn.className = 'kick-btn';
+                kickBtn.innerHTML = '🚫';
+                kickBtn.title = '將此人踢出群組';
+                kickBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (confirm(`確定要將「${data.senderName}」踢出群組嗎？`)) {
+                        if (confirm(`⚠️ 再次確認：踢出後該成員將無法再看到此群組，且需要重新邀請。確定嗎？`)) {
+                            try {
+                                await remove(ref(db, `chats/${currentChat.id}/info/members/${data.senderId}`));
+                                await remove(ref(db, `users/${data.senderId}/groups/${currentChat.id}`));
+                                alert(`已將 ${data.senderName} 踢出群組。`);
+                            } catch (error) {
+                                alert('踢出失敗，請檢查權限。');
+                            }
+                        }
+                    }
+                });
+                wrapper.appendChild(kickBtn);
+            }
+ 
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+ 
+            if (!isMe && (currentChat.type === 'group' || currentChat.type === 'public') && data.senderName) {
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'sender-info';
+                const statusIcon = getStatusIcon(data.senderId);
+                nameDiv.innerHTML = `<span>${esc(data.senderName)}</span> <span class="sender-status-text">${statusIcon}</span>`;
+                wrapper.appendChild(nameDiv);
+            }
+ 
+            if (data.type === 'image') {
+                const img = document.createElement('img');
+                img.src = data.url;
+                img.onclick = () => window.open(data.url, '_blank');
+                bubble.appendChild(img);
+            } else if (data.type === 'video') {
+                const video = document.createElement('video');
+                video.src = data.url; video.controls = true;
+                bubble.appendChild(video);
+            } else if (data.type === 'file') {
+                const a = document.createElement('a');
+                a.href = data.url; a.target = '_blank'; a.className = 'file-link';
+                a.textContent = `📄 ${data.fileName}`;
+                bubble.appendChild(a);
+            } else {
+                bubble.textContent = data.text;
+            }
+ 
+            const time = document.createElement('div');
+            time.className = 'time';
+            if (data.timestamp) {
+                const date = new Date(data.timestamp);
+                time.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+ 
+            wrapper.appendChild(bubble);
+            wrapper.appendChild(time);
+            messagesDiv.appendChild(wrapper);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+ 
+        function updateMessagesStatusUI() {
+            const messages = messagesDiv.querySelectorAll('.message.other');
+            messages.forEach(msg => {
+                const senderId = msg.dataset.senderId;
+                const statusSpan = msg.querySelector('.sender-status-text');
+                if (statusSpan && senderId) {
+                    statusSpan.textContent = getStatusIcon(senderId);
+                }
+            });
+        }
+ 
+        // ============================================================
+        // 🐠 公共水族缸
+        // ============================================================
+        let aquariumStarted = false;
+        let aquariumAnimId = null;
+        let allFishes = {};
+        let aqBubbles = [];
+        let aqPlants = [];
+        let aqBread = null;
+        let liveFoods = {}, foodUnsubscribe = null;
+        let aquariumUnsubscribe = null;
+        let myLastFedAt = 0;
+ 
+        const aqCtx = aquariumCanvas.getContext('2d');
+        let aqW = 0, aqH = 0;
+ 
+        function resizeAquarium() {
+            const rect = aquariumCanvas.parentElement.getBoundingClientRect();
+            aqW = aquariumCanvas.width = Math.max(1, rect.width);
+            aqH = aquariumCanvas.height = Math.max(1, rect.height);
+        }
+        window.addEventListener('resize', () => { if (aquariumWindow.style.display === 'flex') resizeAquarium(); });
+ 
+        function initAquariumScene() {
+            resizeAquarium(); aqBubbles = []; aqPlants = []; aqBread = null;
+            for (let i = 0; i < 25; i++) aqBubbles.push({ x: Math.random() * aqW, y: Math.random() * aqH, r: 2 + Math.random() * 4, s: 0.5 + Math.random() * 1.2 });
+            const plantCount = 10;
+            for (let i = 0; i < plantCount; i++) aqPlants.push({ x: 20 + i * (aqW - 40) / (plantCount - 1), h: 50 + Math.random() * (aqH * 0.25), phase: Math.random() * Math.PI * 2 });
+        }
+ 
+        function checkFeedCooldown() {
+            const now = new Date();
+            const lastFed = new Date(myLastFedAt);
+ 
+            if (now.getFullYear() === lastFed.getFullYear() &&
+                now.getMonth() === lastFed.getMonth() &&
+                now.getDate() === lastFed.getDate()) {
+                feedFishBtn.disabled = true;
+                feedFishBtn.textContent = `⏳ 明天再餵`;
+            } else {
+                feedFishBtn.disabled = false;
+                feedFishBtn.textContent = '🍞 餵飼料';
+            }
+        }
+ 
+        function calcFishSize(bornAt) {
+            const days = Math.max(0, (Date.now() - (Number(bornAt) || Date.now())) / 86400000);
+            return 10 + Math.floor(days / 5) * 5;
+        }
+ 
+        async function ensureMyFishInPublicTank() {
+            if (!myUid) return;
+            try {
+                const snap = await get(ref(db, `aquarium/fishes/${myUid}`));
+                const existing = snap.val();
+ 
+                if (!existing) {
+                    const newFish = {
+                        ownerName: myNickname,
+                        color: `hsl(${Math.random() * 360},70%,60%)`,
+                        size: 10,
+                        speed: 0.5 + Math.random() * 1.2,
+                        dirX: Math.random() < 0.5 ? 1 : -1,
+                        dirY: (Math.random() - 0.5) * 0.5,
+                        phase: Math.random() * Math.PI * 2,
+                        turnCooldown: 0,
+                        bornAt: Date.now()
+                    };
+                    await set(ref(db, `aquarium/fishes/${myUid}`), newFish);
+                } else {
+                    const newSize = calcFishSize(existing.bornAt || Date.now());
+                    if (existing.ownerName !== myNickname || existing.size !== newSize) {
+                        await update(ref(db, `aquarium/fishes/${myUid}`), {
+                            ownerName: myNickname,
+                            size: newSize
+                        });
+                    }
+                }
+            } catch (e) { console.warn('建立/更新公共魚失敗', e); }
+        }
+ 
+        function listenPublicTank() {
+            if (aquariumUnsubscribe) aquariumUnsubscribe();
+            aquariumUnsubscribe = onValue(ref(db, 'aquarium/fishes'), (snapshot) => {
+                const previous = allFishes;
+                allFishes = snapshot.val() || {};
+                for (const [id, fish] of Object.entries(allFishes)) {
+                    if (previous[id]) { fish._x = previous[id]._x; fish._y = previous[id]._y; }
+                }
+                let count = 0;
+                for (const uid in allFishes) {
+                    const f = allFishes[uid]; count++;
+                    if (f._x == null) f._x = Math.random() * (aqW || 300);
+                    if (f._y == null) f._y = 60 + Math.random() * Math.max(1, (aqH || 300) - 140);
+                    if (f.dirX == null) f.dirX = 1;
+                    if (f.dirY == null) f.dirY = 0;
+ 
+                    if (uid === myUid && f.bornAt) {
+                        f.size = calcFishSize(f.bornAt);
+                    }
+                }
+                if (aqFishCount) aqFishCount.textContent = `🐟 ${count} 隻魚`;
+            });
+        }
+ 
+        async function loadMyFeedTime() {
+            if (!myUid) return;
+            try {
+                const snap = await get(ref(db, `aquarium/feedLogs/${myUid}`));
+                if (snap.exists()) {
+                    myLastFedAt = snap.val().lastFedAt || 0;
+                } else {
+                    myLastFedAt = 0;
+                }
+                checkFeedCooldown();
+            } catch(e) { console.warn(e); }
+        }
+ 
+        feedFishBtn.addEventListener('click', async () => {
+            if (feedFishBtn.disabled) return;
+            if (liveFoods[myUid]) return;
+ 
+            try {
+                await set(ref(db, `aquarium/foods/${myUid}`), {
+                    ownerUid: myUid, x: 0.15 + Math.random() * 0.7,
+                    y: 0.2 + Math.random() * 0.5, createdAt: Date.now()
+                });
+            } catch (error) { alert('餵食失敗：' + error.message); return; }
+ 
+            const now = Date.now();
+            myLastFedAt = now;
+            checkFeedCooldown();
+ 
+            try {
+                await set(ref(db, `aquarium/feedLogs/${myUid}`), { lastFedAt: now });
+            } catch(e) { console.warn("無法記錄餵食時間", e); }
+        });
+ 
+        setInterval(checkFeedCooldown, 60000);
+ 
+        function drawAquarium(t) {
+            const g = aqCtx.createLinearGradient(0, 0, 0, aqH);
+            g.addColorStop(0, '#0a4d68'); g.addColorStop(1, '#03202e');
+            aqCtx.fillStyle = g; aqCtx.fillRect(0, 0, aqW, aqH);
+ 
+            aqCtx.save(); aqCtx.globalAlpha = 0.08; aqCtx.fillStyle = '#aef';
+            for (let i = 0; i < 5; i++) {
+                aqCtx.beginPath(); aqCtx.moveTo(aqW * 0.1 + i * aqW * 0.18, 0); aqCtx.lineTo(aqW * 0.18 + i * aqW * 0.18, 0);
+                aqCtx.lineTo(aqW * 0.26 + i * aqW * 0.18, aqH); aqCtx.lineTo(aqW * 0.1 + i * aqW * 0.18, aqH); aqCtx.closePath(); aqCtx.fill();
+            }
+            aqCtx.restore();
+ 
+            const sg = aqCtx.createLinearGradient(0, aqH - 60, 0, aqH);
+            sg.addColorStop(0, '#c2a878'); sg.addColorStop(1, '#8a7350');
+            aqCtx.fillStyle = sg; aqCtx.beginPath(); aqCtx.moveTo(0, aqH - 40);
+            for (let x = 0; x <= aqW; x += 50) aqCtx.lineTo(x, aqH - 40 + Math.sin(x / 70) * 8);
+            aqCtx.lineTo(aqW, aqH); aqCtx.lineTo(0, aqH); aqCtx.closePath(); aqCtx.fill();
+ 
+            aqCtx.strokeStyle = '#2e8b57'; aqCtx.lineWidth = 6; aqCtx.lineCap = 'round';
+            aqPlants.forEach(p => {
+                aqCtx.beginPath(); aqCtx.moveTo(p.x, aqH);
+                const sway = Math.sin(t / 800 + p.phase) * 15;
+                aqCtx.quadraticCurveTo(p.x + sway, aqH - p.h * 0.6, p.x + sway * 1.5, aqH - p.h); aqCtx.stroke();
+            });
+ 
+            aqCtx.fillStyle = 'rgba(200,240,255,0.6)';
+            aqBubbles.forEach(b => {
+                b.y -= b.s; b.x += Math.sin(t / 300 + b.y / 50) * 0.3;
+                if (b.y < -10) { b.y = aqH + 10; b.x = Math.random() * aqW; }
+                aqCtx.beginPath(); aqCtx.arc(b.x, b.y, b.r, 0, Math.PI * 2); aqCtx.fill();
+            });
+ 
+            for (const food of Object.values(liveFoods)) {
+                aqCtx.save(); aqCtx.font = '26px sans-serif';
+                aqCtx.textAlign = 'center'; aqCtx.textBaseline = 'middle';
+                aqCtx.fillText('🍞', food.x * aqW, food.y * aqH); aqCtx.restore();
+            }
+ 
+            for (const uid in allFishes) {
+                const f = allFishes[uid];
+                if (f._x == null) f._x = Math.random() * aqW;
+                if (f._y == null) f._y = 60 + Math.random() * Math.max(1, aqH - 140);
+                if (f.dirX == null) f.dirX = 1;
+                if (f.dirY == null) f.dirY = 0;
+                if (f.turnCooldown == null) f.turnCooldown = 0;
+ 
+                let isChasing = false;
+                const food = liveFoods[uid];
+                if (food) {
+                    isChasing = true;
+                    const dx = food.x * aqW - f._x, dy = food.y * aqH - f._y;
+                    const distance = Math.hypot(dx, dy);
+                    const step = Math.min(4, distance);
+                    if (distance > 0) {
+                        f._x += dx / distance * step;
+                        f._y += dy / distance * step;
+                        f.dirX = dx < 0 ? -1 : 1;
+                    }
+                    if (distance < 10 && uid === myUid && !food._removing) {
+                        food._removing = true;
+                        remove(ref(db, `aquarium/foods/${uid}`)).catch(error => {
+                            food._removing = false; console.warn(error);
+                        });
+                    }
+                }
+ 
+                if (!isChasing) {
+                    f.turnCooldown--;
+                    if (f.turnCooldown <= 0) {
+                        if (Math.random() < 0.1) f.dirX = Math.random() < 0.5 ? 1 : -1;
+                        if (Math.random() < 0.2) f.dirY = (Math.random() - 0.5) * 0.8;
+                        f.turnCooldown = 30 + Math.random() * 60;
+                    }
+ 
+                    f._x += (f.speed || 1) * f.dirX;
+                    f._y += (f.speed || 1) * f.dirY + Math.sin(t / 500 + (f.phase || 0)) * 0.5;
+                }
+ 
+                if (f._x < 20) { f._x = 20; f.dirX = 1; }
+                if (f._x > aqW - 20) { f._x = aqW - 20; f.dirX = -1; }
+                if (f._y < 30) { f._y = 30; f.dirY = Math.abs(f.dirY) || 0.5; }
+                if (f._y > aqH - 50) { f._y = aqH - 50; f.dirY = -Math.abs(f.dirY) || -0.5; }
+                if (f.dirX === 0 && f.dirY === 0) f.dirX = 1;
+ 
+                const s = calcFishSize(f.bornAt);
+                aqCtx.save();
+                aqCtx.translate(f._x, f._y);
+                aqCtx.scale(f.dirX || 1, 1);
+ 
+                const speciesInfo = tankSpecies.find(item => item.id === f.species);
+                if (speciesInfo) {
+                    aqCtx.scale(-1, 1);
+                    aqCtx.font = `${s * 2.8}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+                    aqCtx.textAlign = 'center'; aqCtx.textBaseline = 'middle';
+                    aqCtx.fillText(speciesInfo.icon, 0, 0);
+                } else {
+                const tail = Math.sin(t / 150 + (f.phase || 0)) * 4;
+                aqCtx.fillStyle = f.color || '#4af';
+                aqCtx.beginPath(); aqCtx.moveTo(-s, 0); aqCtx.lineTo(-s * 1.8, -s * 0.6 + tail); aqCtx.lineTo(-s * 1.8, s * 0.6 + tail); aqCtx.closePath(); aqCtx.fill();
+ 
+                aqCtx.beginPath(); aqCtx.ellipse(0, 0, s, s * 0.55, 0, 0, Math.PI * 2); aqCtx.fill();
+ 
+                aqCtx.fillStyle = '#fff'; aqCtx.beginPath(); aqCtx.arc(s * 0.5, -s * 0.15, s * 0.18, 0, Math.PI * 2); aqCtx.fill();
+                aqCtx.fillStyle = '#000'; aqCtx.beginPath(); aqCtx.arc(s * 0.55, -s * 0.15, s * 0.08, 0, Math.PI * 2); aqCtx.fill();
+ 
+                }
+                aqCtx.restore();
+ 
+                if (f.ownerName) {
+                    aqCtx.save(); aqCtx.font = 'bold 12px sans-serif'; aqCtx.textAlign = 'center';
+                    if (uid === myUid) aqCtx.fillStyle = '#ffe066';
+                    else aqCtx.fillStyle = 'rgba(255,255,255,0.85)';
+                    aqCtx.fillText(f.ownerName, f._x, f._y - s - 6); aqCtx.restore();
+                }
+            }
+            aquariumAnimId = requestAnimationFrame(drawAquarium);
+        }
+ 
+        aquariumCanvas.addEventListener('click', () => { if (isAdmin) aButton.click(); });
+ 
+        async function openAquarium() {
+            aquariumWindow.style.display = 'flex';
+            if (!aquariumStarted) { initAquariumScene(); aquariumStarted = true; }
+            else { resizeAquarium(); }
+            await ensureMyFishInPublicTank();
+            listenPublicTank();
+            if (foodUnsubscribe) foodUnsubscribe();
+            foodUnsubscribe = onValue(ref(db, 'aquarium/foods'), snapshot => {
+                liveFoods = snapshot.val() || {};
+            }, console.error);
+            loadMyFeedTime();
+            if (!aquariumAnimId) drawAquarium(0);
+        }
+ 
+        function closeAquarium() {
+            aquariumWindow.style.display = 'none';
+            if (aquariumAnimId) { cancelAnimationFrame(aquariumAnimId); aquariumAnimId = null; }
+            if (aquariumUnsubscribe) { aquariumUnsubscribe(); aquariumUnsubscribe = null; }
+            if (foodUnsubscribe) { foodUnsubscribe(); foodUnsubscribe = null; }
+            liveFoods = {};
+            aquariumStarted = false;
+        }
+ 
+        aquariumEntry.addEventListener('click', openAquarium);
+        aquariumBackBtn.addEventListener('click', closeAquarium);
+ 
+const tankSpecies=[{"id": "puffer", "icon": "🐡", "name": "河豚"}, {"id": "shark", "icon": "🦈", "name": "鯊魚"}, {"id": "dolphin", "icon": "🐬", "name": "海豚"}, {"id": "whale", "icon": "🐳", "name": "鯨魚"}, {"id": "octopus", "icon": "🐙", "name": "章魚"}, {"id": "turtle", "icon": "🐢", "name": "海龜"}, {"id": "shrimp", "icon": "🦐", "name": "小蝦"}, {"id": "squid", "icon": "🦑", "name": "烏賊"}, {"id": "lobster", "icon": "🦞", "name": "龍蝦"}];
+ 
+const aTools=document.createElement('div');aTools.className='a-tools';const aLabel=document.createElement('label');aLabel.textContent='🧬 我的品種：';const aSelect=document.createElement('select');for(const bio of [{id:'original',icon:'',name:'原本彩色魚'},...tankSpecies]){const o=document.createElement('option');o.value=bio.id;o.textContent=bio.icon+' '+bio.name;aSelect.append(o);}aLabel.append(aSelect);const aColorLabel=document.createElement('label');aColorLabel.textContent='🎨 換色 ';const aColor=document.createElement('input');aColor.type='color';aColor.value='#44aaff';aColorLabel.append(aColor);const aHint=document.createElement('span');aHint.textContent='每5天大小增加5，無上限。圖示品種配色固定。';aHint.style.fontSize='11px';aTools.append(aLabel,aColorLabel,aHint);aquariumWindow.insertBefore(aTools,aquariumCanvas.parentElement);
+async function aSave(data){if(!myUid)return;try{await ensureMyFishInPublicTank();await update(ref(db,`aquarium/fishes/${myUid}`),data);}catch(e){alert('更新失敗：'+e.message);}}
+aSelect.onchange=()=>aSave({species:aSelect.value});aColor.onchange=()=>aSave({color:aColor.value});
+let aOwnUnsub=null,aFeedUnsub=null;
+onAuthStateChanged(auth,user=>{if(aOwnUnsub)aOwnUnsub();if(aFeedUnsub)aFeedUnsub();if(!user)return;aOwnUnsub=onValue(ref(db,`aquarium/fishes/${user.uid}`),snap=>{const f=snap.val()||{};aSelect.value=tankSpecies.some(b=>b.id===f.species)?f.species:'original';if(/^#[0-9a-f]{6}$/i.test(f.color||''))aColor.value=f.color;},console.error);aFeedUnsub=onValue(ref(db,`aquarium/feedLogs/${user.uid}`),snap=>{myLastFedAt=Number(snap.val()?.lastFedAt)||0;checkFeedCooldown();},console.error);});
+const aOverlay=document.createElement('div');aOverlay.id='a-overlay';aOverlay.innerHTML='<section class="a-panel" role="dialog" aria-modal="true" aria-label="魚群設定"><h3>⚙️ 魚群設定</h3><div id="a-grid"></div><footer><button type="button">關閉</button></footer></section>';document.body.append(aOverlay);const aGrid=document.getElementById('a-grid'),aButton=document.createElement('button');aButton.className='feed-btn';aButton.textContent='⚙️ 魚群設定';aButton.style.cssText='display:none;background:#5268b5';document.querySelector('#aquarium-window .header-actions').append(aButton);
+let aUnsub=null,aData={},aBusy=false;const aDay=86400000;
+function aAge(f){return Math.max(0,Math.floor((Date.now()-(Number(f.bornAt)||Date.now()))/aDay));}
+function aClose(){aOverlay.style.display='none';if(aUnsub){aUnsub();aUnsub=null;}}
+function aAccess(){aButton.style.display=auth.currentUser&&isAdmin?'inline-block':'none';if(!auth.currentUser||!isAdmin)aClose();}onAuthStateChanged(auth,aAccess);loginBtn.addEventListener('click',aAccess);logoutBtn.addEventListener('click',aClose);
+async function aRun(fn){if(!isAdmin||!myUid||aBusy)return;aBusy=true;aGrid.querySelectorAll('button,input').forEach(b=>b.disabled=true);try{await fn();}catch(e){alert(e.message);}finally{aBusy=false;aRender();}}
+function aBtn(text,cls,fn){const b=document.createElement('button');b.type='button';b.textContent=text;b.className=cls;b.disabled=aBusy;b.onclick=()=>aRun(fn);return b;}
+async function aSetAge(uid,days){if(!Number.isInteger(days)||days<0||days>36500)throw Error('請輸入0～36500的整數天數');const r=ref(db,`aquarium/fishes/${uid}`);if(!(await get(r)).exists())throw Error('魚已不存在');const bornAt=Date.now()-days*aDay;await update(r,{bornAt,size:calcFishSize(bornAt)});}
+async function aShift(uid,n){const snap=await get(ref(db,`aquarium/fishes/${uid}`));if(!snap.exists())throw Error('魚已不存在');await aSetAge(uid,Math.max(0,Math.min(36500,aAge(snap.val())+n)));}
+function aRender(){if(aGrid.contains(document.activeElement)&&document.activeElement.matches('input')&&!aBusy)return;aGrid.replaceChildren();if(!Object.keys(aData).length){aGrid.textContent='目前沒有魚';return;}for(const [uid,f] of Object.entries(aData)){const card=document.createElement('article');card.className='a-card';const name=document.createElement('p');name.textContent='魚主人：'+(f.ownerName||'未命名玩家');name.style.fontWeight='bold';const age=document.createElement('p');age.textContent='魚齡：'+aAge(f)+' 天';const bio=tankSpecies.find(b=>b.id===f.species),type=document.createElement('p');type.textContent='品種：'+(bio?bio.icon+' '+bio.name:'原本彩色魚');const reset=aBtn('取消今日餵食，允許重新餵食','a-reset',async()=>{if(confirm('取消餵食並允許重新餵食？'))await update(ref(db),{[`aquarium/feedLogs/${uid}`]:null,[`aquarium/foods/${uid}`]:null});});const label=document.createElement('p');label.textContent='調整魚齡';const row=document.createElement('div');row.className='a-row';const input=document.createElement('input');input.type='number';input.min='0';input.max='36500';input.step='1';input.value=String(aAge(f));input.disabled=aBusy;input.setAttribute('aria-label','魚齡天數');input.onchange=()=>{const days=Number(input.value);if(input.value.trim()===''||!Number.isInteger(days)||days<0||days>36500){alert('請輸入0～36500的整數天數');input.value=String(aAge(f));return;}if(days!==aAge(f))aRun(()=>aSetAge(uid,days));};input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();input.blur();}};const unit=document.createElement('span');unit.textContent='天';row.append(aBtn('−1 天','',()=>aShift(uid,-1)),input,unit,aBtn('＋1 天','',()=>aShift(uid,1)));const del=aBtn('🗑️ 刪除這隻魚','a-delete',async()=>{if(confirm('確定刪除這隻魚？原資料無法復原。'))await update(ref(db),{[`aquarium/fishes/${uid}`]:null,[`aquarium/foods/${uid}`]:null});});card.append(name,age,type,reset,label,row,del);aGrid.append(card);}}
+aButton.onclick=()=>{if(!isAdmin||!myUid)return;aClose();aOverlay.style.display='flex';aGrid.textContent='載入中…';aUnsub=onValue(ref(db,'aquarium/fishes'),snap=>{aData=snap.val()||{};aRender();},e=>{aGrid.textContent=e.message;});};aOverlay.querySelector('footer button').onclick=aClose;aOverlay.onclick=e=>{if(e.target===aOverlay)aClose();};document.addEventListener('keydown',e=>{if(e.key==='Escape')aClose();});aAccess();
+ 
+        // ============================================================
+        // 🔫 NEXUS 槍戰（整合版）
+        // 登入沿用聊天室帳號；管理員沿用聊天室的 isAdmin
+        // 資料路徑：shooter/rooms/{頻道}/...  與  shooter/saves/{uid}
+        // ============================================================
+        const shooterEntry = document.getElementById('shooter-entry');
+        const shooterWindow = document.getElementById('shooter-window');
+        const shooterCanvas = document.getElementById('shooter-canvas');
+        const sctx = shooterCanvas.getContext('2d');
+        const shWrap = document.getElementById('sh-wrap');
+        const shChannel = document.getElementById('sh-channel');
+        const shOnline = document.getElementById('sh-online');
+        const shShop = document.getElementById('sh-shop');
+        const shAdmin = document.getElementById('sh-admin');
+        const shAdminBtn = document.getElementById('sh-admin-btn');
+        const shWeapons = document.getElementById('sh-weapons');
+ 
+        const S_W = 400, S_H = 640;
+        const WEAPONS = {
+            pistol:{ name:'手槍', rate:200, color:'#00e5ff' },
+            shotgun:{ name:'霰彈', rate:480, color:'#f59e0b' },
+            machinegun:{ name:'機槍', rate:70, color:'#facc15' },
+            laser:{ name:'雷射', rate:120, color:'#ec4899' },
+            rocket:{ name:'火箭', rate:650, color:'#ef4444' },
+            railgun:{ name:'電磁砲', rate:800, color:'#a855f7' }
+        };
+        const WORDER = ['pistol','shotgun','machinegun','laser','rocket','railgun'];
+        const MAX_BULLETS = 300, MAX_PARTS = 300, MAX_ENEMIES = 12, SLICE_MS = 1200;
+ 
+        for (let i = 1; i <= 20; i++) { const o = document.createElement('option'); o.value = i; o.textContent = '頻道 ' + i; shChannel.appendChild(o); }
+ 
+        const G = {
+            ch: 1, joinedCh: null, running: false, raf: null, unsubs: [], hb: null, saveTimer: null,
+            me: { x: 185, y: 560, w: 30, h: 30, hp: 100, maxHp: 100, inv: 0 },
+            remote: {}, bullets: [], enemies: [], boss: null, drops: [], parts: [], stars: [],
+            money: 20, score: 0, kills: 0, weapon: 'pistol',
+            wl: { pistol:1, shotgun:1, machinegun:1, laser:1, rocket:1, railgun:1 },
+            eq: { armor: 0, speed: 3.5, dbl: false },
+            fx: { onekill: false, inv: 0, quick: 0 },
+            killSet: new Set(), spawned: new Set(), keys: {}, mouse: { x: 200, y: 300 }, shooting: false,
+            joy: null, aimId: null, dead: false, respawn: 0, top: 0, lastShot: 0, tick: 0, bossTick: 0,
+            lastBoss: 0, dirty: false, shake: 0, fps: 60, frames: 0, fpsT: 0, shopOpen: false, adminOpen: false
+        };
+        for (let i = 0; i < 70; i++) G.stars.push({ x: Math.random() * S_W, y: Math.random() * S_H, s: Math.random() * 1.8 + .5, v: Math.random() * 1.2 + .3, a: Math.random() * .7 + .3 });
+ 
+        const sRoot = () => `shooter/rooms/${G.ch}`;
+ 
+        function sFit() {
+            const r = shWrap.getBoundingClientRect();
+            const k = Math.min(r.width / S_W, r.height / S_H);
+            shooterCanvas.style.width = Math.floor(S_W * k) + 'px';
+            shooterCanvas.style.height = Math.floor(S_H * k) + 'px';
+        }
+        window.addEventListener('resize', () => { if (shooterWindow.style.display === 'flex') sFit(); });
+ 
+        function sPos(cx, cy) {
+            const r = shooterCanvas.getBoundingClientRect();
+            return { x: (cx - r.left) * (S_W / r.width), y: (cy - r.top) * (S_H / r.height) };
+        }
+ 
+        // ---- 存檔（每個帳號獨立）----
+        async function sLoadSave() {
+            try {
+                const snap = await get(ref(db, `shooter/saves/${myUid}`));
+                const d = snap.val();
+                if (d) {
+                    G.money = Number(d.money) || 0;
+                    if (d.wl) for (const k of WORDER) G.wl[k] = Math.max(1, Number(d.wl[k]) || 1);
+                    if (d.eq) { G.eq.armor = Number(d.eq.armor) || 0; G.eq.speed = Number(d.eq.speed) || 3.5; G.eq.dbl = !!d.eq.dbl; }
+                }
+            } catch (e) { console.warn('讀取槍戰存檔失敗', e); }
+        }
+        function sSave() {
+            if (!myUid || !G.dirty) return;
+            G.dirty = false;
+            set(ref(db, `shooter/saves/${myUid}`), { money: G.money, wl: G.wl, eq: G.eq }).catch(() => {});
+        }
+ 
+        // ---- 房間 ----
+        function sLeaveRoom() {
+            G.unsubs.forEach(u => { try { u(); } catch (e) {} });
+            G.unsubs = [];
+            if (G.joinedCh != null && myUid) {
+                const p = ref(db, `shooter/rooms/${G.joinedCh}/players/${myUid}`);
+                try { onDisconnect(p).cancel(); } catch (e) {}
+                remove(p).catch(() => {});
+            }
+            G.joinedCh = null;
+        }
+ 
+        function sJoin(ch) {
+            sLeaveRoom();
+            G.ch = ch; G.joinedCh = ch;
+            G.remote = {}; G.bullets = []; G.enemies = []; G.drops = []; G.parts = []; G.boss = null;
+            G.killSet = new Set(); G.spawned = new Set(); G.top = 0; G.lastBoss = 0;
+            G.me.hp = G.me.maxHp; G.me.x = 185; G.me.y = 560; G.me.inv = 90;
+            G.dead = false; G.score = 0; G.kills = 0;
+            shOnline.textContent = '👤 1';
+ 
+            const root = sRoot();
+            const mine = ref(db, `${root}/players/${myUid}`);
+            onDisconnect(mine).remove();
+            sSync();
+ 
+            G.unsubs.push(onValue(ref(db, `${root}/players`), snap => {
+                const data = snap.val() || {};
+                const next = {};
+                let top = G.score;
+                const now = Date.now();
+                for (const id in data) {
+                    const p = data[id];
+                    if (id === myUid) continue;
+                    if (p.updatedAt && now - p.updatedAt > 120000) continue;
+                    const old = G.remote[id];
+                    next[id] = old
+                        ? Object.assign(old, { tx: p.x, ty: p.y, hp: p.hp, score: p.score, name: p.name, color: p.color, adm: p.adm })
+                        : { x: p.x, y: p.y, tx: p.x, ty: p.y, hp: p.hp, score: p.score, name: p.name, color: p.color, adm: p.adm };
+                    if ((p.score || 0) > top) top = p.score || 0;
+                }
+                G.remote = next;
+                G.top = top;
+                shOnline.textContent = '👤 ' + (Object.keys(next).length + 1);
+            }));
+ 
+            G.unsubs.push(onValue(ref(db, `${root}/deadEnemies`), snap => {
+                const data = snap.val() || {};
+                const now = Date.now();
+                for (const id in data) {
+                    const ts = data[id];
+                    if (typeof ts === 'number' && now - ts > 3600000) { remove(ref(db, `${root}/deadEnemies/${id}`)).catch(() => {}); continue; }
+                    if (!G.killSet.has(id)) {
+                        G.killSet.add(id);
+                        G.enemies = G.enemies.filter(e => e.id !== id);
+                    }
+                }
+            }));
+ 
+            G.unsubs.push(onValue(ref(db, `${root}/boss`), snap => {
+                const b = snap.val();
+                if (!b || !b.id || !(b.hp > 0)) { G.boss = null; return; }
+                if (!G.boss || G.boss.id !== b.id) {
+                    G.boss = { id: b.id, x: b.x, y: b.y, w: 80, h: 80, hp: b.hp, maxHp: b.maxHp, atk: 0, remote: b.owner !== myUid };
+                } else {
+                    G.boss.hp = b.hp; G.boss.maxHp = b.maxHp;
+                    if (G.boss.remote) { G.boss.x = b.x; G.boss.y = b.y; }
+                }
+            }));
+        }
+ 
+        function sSync() {
+            if (!G.joinedCh || !myUid) return;
+            set(ref(db, `shooter/rooms/${G.joinedCh}/players/${myUid}`), {
+                x: Math.round(G.me.x), y: Math.round(G.me.y), hp: Math.max(0, Math.round(G.me.hp)),
+                score: G.score, name: myNickname, color: isAdmin ? '#fbbf24' : '#00e5ff', adm: !!isAdmin, updatedAt: Date.now()
+            }).catch(() => {});
+        }
+ 
+        function sTrySpawnBoss(level) {
+            const id = 'BOSS_' + level;
+            if (G.killSet.has(id)) return;
+            const now = Date.now();
+            if (now - G.lastBoss < 3000) return;
+            G.lastBoss = now;
+            runTransaction(ref(db, `${sRoot()}/boss`), cur => {
+                if (cur && cur.hp > 0) return;
+                return { id, level, x: 160, y: 80, hp: 800 + level * 200, maxHp: 800 + level * 200, owner: myUid, bornAt: Date.now() };
+            }).catch(() => {});
+        }
+ 
+        function sKill(e, bonusScore) {
+            if (G.killSet.has(e.id)) return;
+            G.killSet.add(e.id);
+            G.score += bonusScore || 1;
+            set(ref(db, `${sRoot()}/deadEnemies/${e.id}`), Date.now()).catch(() => {});
+        }
+ 
+        // ---- 粒子 / 射擊 ----
+        function sParts(x, y, color, n, sp) {
+            sp = sp || 1;
+            if (G.parts.length > MAX_PARTS) n = Math.min(n, 2);
+            for (let i = 0; i < n; i++) {
+                const a = Math.random() * 6.283, v = (Math.random() * 3 + 1) * sp;
+                G.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: Math.random() * 18 + 10, max: 28, color, size: Math.random() * 3 + 1 });
+            }
+        }
+        function sBeep(freq, dur) {
+            try {
+                const ac = sBeep.ac || (sBeep.ac = new (window.AudioContext || window.webkitAudioContext)());
+                if (ac.state === 'suspended') ac.resume();
+                const o = ac.createOscillator(), g = ac.createGain();
+                o.type = 'square'; o.frequency.value = freq; g.gain.value = 0.04;
+                o.connect(g); g.connect(ac.destination);
+                o.start(); g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur); o.stop(ac.currentTime + dur);
+            } catch (e) {}
+        }
+ 
+        function sPushBullet(b) {
+            if (G.fx.onekill) b.dmg = 999999;
+            if (G.bullets.length >= MAX_BULLETS) G.bullets.shift();
+            G.bullets.push(b);
+        }
+        function sShoot() {
+            const now = Date.now();
+            const w = G.weapon, cfg = WEAPONS[w], lv = G.wl[w];
+            const rate = G.fx.quick > 0 ? cfg.rate / 5 : cfg.rate;
+            if (now - G.lastShot < rate) return;
+            G.lastShot = now;
+            const cx = G.me.x + G.me.w / 2, cy = G.me.y + G.me.h / 2;
+            let dx = G.mouse.x - cx, dy = G.mouse.y - cy;
+            const len = Math.hypot(dx, dy) || 1;
+            const vx = dx / len, vy = dy / len;
+            const multi = G.eq.dbl ? 2 : 1;
+            sBeep(w === 'rocket' || w === 'railgun' ? 140 : 480, 0.06);
+            for (let m = 0; m < multi; m++) {
+                const off = (m - (multi - 1) / 2) * 12;
+                const ox = cx - vy * off, oy = cy + vx * off;
+                if (w === 'pistol') sPushBullet({ x: ox, y: oy, vx: vx * (8 + lv * .6), vy: vy * (8 + lv * .6), dmg: 18 + lv * 4, color: cfg.color, size: 4, type: w });
+                else if (w === 'shotgun') for (let i = -2; i <= 2; i++) { const s = i * .15; sPushBullet({ x: ox, y: oy, vx: (vx + s) * (6 + lv * .5), vy: (vy + s) * (6 + lv * .5), dmg: 10 + lv * 2, color: cfg.color, size: 3, type: w }); }
+                else if (w === 'machinegun') sPushBullet({ x: ox, y: oy, vx: (vx + (Math.random() - .5) * .1) * (10 + lv * .5), vy: (vy + (Math.random() - .5) * .1) * (10 + lv * .5), dmg: 12 + lv * 2, color: cfg.color, size: 3, type: w });
+                else if (w === 'laser') sPushBullet({ x: ox, y: oy, vx: vx * 13, vy: vy * 13, dmg: 8 + lv * 2, color: cfg.color, size: 4, type: w, pierce: true });
+                else if (w === 'rocket') sPushBullet({ x: ox, y: oy, vx: vx * 6, vy: vy * 6, dmg: 50 + lv * 15, color: cfg.color, size: 7, type: w, splash: true });
+                else if (w === 'railgun') sPushBullet({ x: ox, y: oy, vx: vx * 20, vy: vy * 20, dmg: 90 + lv * 25, color: cfg.color, size: 8, type: w, pierce: true, life: 6 });
+            }
+            sParts(cx + vx * 14, cy + vy * 14, cfg.color, 3);
+            if (w === 'rocket' || w === 'railgun') G.shake = Math.max(G.shake, 4);
+        }
+ 
+        // ---- 敵人 ----
+        function sRand(slice, salt) { const x = Math.sin(slice * 12.9898 + salt * 78.233) * 43758.5453; return x - Math.floor(x); }
+        function sMakeEnemy(slice) {
+            const r = sRand(slice, 2);
+            let type = 'normal', h = 50, s = 1.3, w = 26;
+            if (r < .25) { type = 'fast'; s = 2.4; h = 30; w = 22; }
+            else if (r < .45) { type = 'tank'; s = .8; h = 160; w = 36; }
+            else if (r < .6) { type = 'shooter'; s = 1.1; }
+            return { id: 'E_' + slice, x: sRand(slice, 3) * (S_W - w), y: -40, w, h: w, type, hp: h, maxHp: h, speed: s, cd: 70 };
+        }
+        function sEnemyDied(e) {
+            sParts(e.x + e.w / 2, e.y + e.h / 2, '#ef4444', 10);
+            sKill(e, 1);
+            G.kills++; G.money += 1; G.dirty = true;
+            if (Math.random() < .25) G.drops.push({ x: e.x, y: e.y, kind: Math.random() < .5 ? 'heal' : 'coin' });
+        }
+ 
+        // ---- 主迴圈 ----
+        function sUpdate() {
+            const me = G.me;
+            G.tick++;
+            for (const id in G.remote) { const r = G.remote[id]; r.x += (r.tx - r.x) * .3; r.y += (r.ty - r.y) * .3; }
+            G.stars.forEach(s => { s.y += s.v; if (s.y > S_H) s.y = 0; });
+ 
+            if (G.dead) {
+                if (--G.respawn <= 0) {
+                    me.hp = me.maxHp; me.x = 185; me.y = 560; me.inv = 120; G.dead = false;
+                    G.bullets = []; G.enemies = []; G.score = 0; G.kills = 0; sSync();
+                }
+                return;
+            }
+ 
+            // 敵人依時間切片生成（所有人看到相同的怪）
+            const slice = Math.floor(Date.now() / SLICE_MS);
+            if (G.enemies.length < MAX_ENEMIES) {
+                for (let s = slice; s > slice - 3; s--) {
+                    if (G.spawned.has(s)) continue;
+                    G.spawned.add(s);
+                    if (G.killSet.has('E_' + s)) continue;
+                    if (G.enemies.length >= MAX_ENEMIES) break;
+                    G.enemies.push(sMakeEnemy(s));
+                }
+            }
+            if (G.spawned.size > 400) G.spawned = new Set(Array.from(G.spawned).sort((a, b) => b - a).slice(0, 150));
+ 
+            const bl = Math.floor(G.top / 40);
+            if (!G.boss && bl > 0) sTrySpawnBoss(bl);
+ 
+            // 移動（鍵盤 + 虛擬搖桿）
+            let mx = 0, my = 0;
+            const K = G.keys;
+            if (K.KeyA || K.ArrowLeft) mx -= 1;
+            if (K.KeyD || K.ArrowRight) mx += 1;
+            if (K.KeyW || K.ArrowUp) my -= 1;
+            if (K.KeyS || K.ArrowDown) my += 1;
+            if (G.joy) { mx += G.joy.dx; my += G.joy.dy; }
+            const ml = Math.hypot(mx, my);
+            let moved = false;
+            if (ml > 0) {
+                const sp = G.eq.speed;
+                const k = ml > 1 ? 1 / ml : 1;
+                me.x += mx * k * sp; me.y += my * k * sp; moved = true;
+            }
+            me.x = Math.max(0, Math.min(S_W - me.w, me.x));
+            me.y = Math.max(0, Math.min(S_H - me.h, me.y));
+            if (moved || G.tick % 6 === 0) sSync();
+ 
+            if (G.shooting && !G.shopOpen && !G.adminOpen) sShoot();
+ 
+            for (let i = G.parts.length - 1; i >= 0; i--) { const p = G.parts[i]; p.x += p.vx; p.y += p.vy; if (--p.life <= 0) G.parts.splice(i, 1); }
+ 
+            // 敵人行為
+            const targets = [{ x: me.x, y: me.y }];
+            for (const id in G.remote) targets.push({ x: G.remote[id].x, y: G.remote[id].y });
+            for (const e of G.enemies) {
+                let t = targets[0], md = Infinity;
+                for (const tp of targets) { const d = (tp.x - e.x) ** 2 + (tp.y - e.y) ** 2; if (d < md) { md = d; t = tp; } }
+                const dx = t.x - e.x, dy = t.y - e.y, dist = Math.hypot(dx, dy) || 1;
+                e.x += dx / dist * e.speed; e.y += dy / dist * e.speed;
+                if (e.type === 'shooter' && --e.cd <= 0) {
+                    if (G.bullets.length < MAX_BULLETS) G.bullets.push({ x: e.x + 10, y: e.y + 10, vx: dx / dist * 4, vy: dy / dist * 4, enemy: true, dmg: 10, color: '#ef4444', size: 4 });
+                    e.cd = 70;
+                }
+                if (me.inv === 0 && e.x < me.x + me.w && e.x + e.w > me.x && e.y < me.y + me.h && e.y + e.h > me.y) {
+                    me.hp -= Math.max(3, 14 - G.eq.armor); me.inv = 30; G.shake = Math.max(G.shake, 5);
+                    sParts(me.x + 15, me.y + 15, '#ef4444', 8); sBeep(110, 0.05);
+                }
+            }
+ 
+            // BOSS（擁有者負責移動；每位玩家各自朝自己開火）
+            const B = G.boss;
+            if (B) {
+                if (!B.remote) {
+                    let t = { x: me.x, y: me.y }, md = (me.x - B.x) ** 2 + (me.y - B.y) ** 2;
+                    for (const id in G.remote) { const r = G.remote[id]; const d = (r.x - B.x) ** 2 + (r.y - B.y) ** 2; if (d < md) { md = d; t = { x: r.x, y: r.y }; } }
+                    const dx = t.x - B.x, dy = t.y - B.y, dist = Math.hypot(dx, dy) || 1;
+                    B.x += dx / dist * 1; B.y += dy / dist * 1;
+                    if (++G.bossTick % 12 === 0) {
+                        const bid = B.id, bx = Math.round(B.x), by = Math.round(B.y);
+                        runTransaction(ref(db, `${sRoot()}/boss`), cur => { if (!cur || cur.id !== bid) return; cur.x = bx; cur.y = by; return cur; }).catch(() => {});
+                    }
+                }
+                B.atk++;
+                if (B.atk % 30 === 0 && G.bullets.length < MAX_BULLETS) {
+                    const bx = B.x + 40, by = B.y + 40;
+                    const ax = me.x + 15 - bx, ay = me.y + 15 - by, ad = Math.hypot(ax, ay) || 1;
+                    G.bullets.push({ x: bx, y: by, vx: ax / ad * 5, vy: ay / ad * 5, enemy: true, dmg: 18, color: '#ef4444', size: 6 });
+                }
+            }
+ 
+            // 子彈
+            for (let i = G.bullets.length - 1; i >= 0; i--) {
+                const b = G.bullets[i];
+                if (b.life != null && --b.life <= 0) { G.bullets.splice(i, 1); continue; }
+                b.x += b.vx; b.y += b.vy;
+                if (b.x < -40 || b.x > S_W + 40 || b.y < -40 || b.y > S_H + 40) { G.bullets.splice(i, 1); continue; }
+ 
+                if (b.enemy) {
+                    if (me.inv === 0 && b.x > me.x && b.x < me.x + me.w && b.y > me.y && b.y < me.y + me.h) {
+                        me.hp -= Math.max(3, (b.dmg || 10) - G.eq.armor); me.inv = 25; G.shake = Math.max(G.shake, 3);
+                        sParts(me.x + 15, me.y + 15, '#ef4444', 6); sBeep(110, 0.05);
+                        G.bullets.splice(i, 1);
+                    }
+                    continue;
+                }
+ 
+                if (B && b.x > B.x && b.x < B.x + B.w && b.y > B.y && b.y < B.y + B.h) {
+                    sParts(b.x, b.y, '#a855f7', 4);
+                    if (!b.pierce) G.bullets.splice(i, 1);
+                    const hb = { id: B.id, x: B.x, y: B.y }, dmg = b.dmg || 15, root = sRoot();
+                    runTransaction(ref(db, `${root}/boss`), cur => {
+                        if (!cur || cur.id !== hb.id) return;
+                        cur.hp = Math.max(0, cur.hp - dmg); return cur;
+                    }).then(res => {
+                        const cur = res && res.snapshot ? res.snapshot.val() : null;
+                        if (res && res.committed && cur && cur.hp <= 0) {
+                            sParts(hb.x + 40, hb.y + 40, '#a855f7', 30, 2); G.shake = 12;
+                            G.killSet.add(hb.id);
+                            G.score += 40; G.money += 50; G.dirty = true;
+                            set(ref(db, `${root}/deadEnemies/${hb.id}`), Date.now()).catch(() => {});
+                            remove(ref(db, `${root}/boss`)).catch(() => {});
+                            if (G.boss && G.boss.id === hb.id) G.boss = null;
+                        }
+                    }).catch(() => {});
+                    continue;
+                }
+ 
+                let consumed = false;
+                for (let j = G.enemies.length - 1; j >= 0; j--) {
+                    const e = G.enemies[j];
+                    if (b.x > e.x && b.x < e.x + e.w && b.y > e.y && b.y < e.y + e.h) {
+                        e.hp -= b.dmg || 15;
+                        sParts(b.x, b.y, '#f59e0b', 3);
+                        if (b.splash) {
+                            sParts(b.x, b.y, '#ef4444', 14, 2); G.shake = Math.max(G.shake, 7); sBeep(90, 0.15);
+                            for (const en of G.enemies) if (Math.hypot(en.x - b.x, en.y - b.y) < 90) en.hp -= (b.dmg || 15) * .8;
+                        }
+                        if (e.hp <= 0) { G.enemies.splice(j, 1); sEnemyDied(e); }
+                        if (!b.pierce) { G.bullets.splice(i, 1); consumed = true; break; }
+                    }
+                }
+                if (consumed) continue;
+            }
+ 
+            // 被範圍傷害打死的敵人
+            for (let j = G.enemies.length - 1; j >= 0; j--) if (G.enemies[j].hp <= 0) { const e = G.enemies[j]; G.enemies.splice(j, 1); sEnemyDied(e); }
+ 
+            // 掉落物
+            for (let i = G.drops.length - 1; i >= 0; i--) {
+                const d = G.drops[i];
+                d.y += .5;
+                if (me.x < d.x + 16 && me.x + me.w > d.x && me.y < d.y + 16 && me.y + me.h > d.y) {
+                    if (d.kind === 'heal') me.hp = Math.min(me.maxHp, me.hp + 25); else { G.money += 3; G.dirty = true; }
+                    sBeep(660, 0.08); sParts(me.x + 15, me.y + 15, '#38bdf8', 8);
+                    G.drops.splice(i, 1);
+                } else if (d.y > S_H + 30) G.drops.splice(i, 1);
+            }
+ 
+            if (me.hp > me.maxHp) me.hp = me.maxHp;
+            if (me.hp <= 0) { G.dead = true; G.respawn = 180; sSync(); }
+            if (me.inv > 0) me.inv--;
+            if (G.fx.inv > 0) { me.inv = Math.max(me.inv, 2); G.fx.inv--; }
+            if (G.fx.quick > 0) G.fx.quick--;
+        }
+ 
+        function sDraw() {
+            const c = sctx;
+            c.save();
+            if (G.shake > 0) { c.translate((Math.random() - .5) * G.shake, (Math.random() - .5) * G.shake); G.shake *= .85; if (G.shake < .4) G.shake = 0; }
+            c.clearRect(-10, -10, S_W + 20, S_H + 20);
+            c.fillStyle = '#050811'; c.fillRect(-10, -10, S_W + 20, S_H + 20);
+            c.fillStyle = '#fff';
+            for (const s of G.stars) { c.globalAlpha = s.a; c.beginPath(); c.arc(s.x, s.y, s.s, 0, 6.283); c.fill(); }
+            c.globalAlpha = 1;
+            c.strokeStyle = 'rgba(30,41,59,.4)'; c.lineWidth = 1;
+            for (let x = 0; x < S_W; x += 40) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, S_H); c.stroke(); }
+            for (let y = 0; y < S_H; y += 40) { c.beginPath(); c.moveTo(0, y); c.lineTo(S_W, y); c.stroke(); }
+ 
+            for (const p of G.parts) { c.globalAlpha = Math.max(0, p.life / p.max); c.fillStyle = p.color; c.beginPath(); c.arc(p.x, p.y, p.size, 0, 6.283); c.fill(); }
+            c.globalAlpha = 1;
+ 
+            for (const d of G.drops) {
+                const col = d.kind === 'heal' ? '#22c55e' : '#facc15';
+                c.shadowColor = col; c.shadowBlur = 10; c.fillStyle = col; c.fillRect(d.x, d.y, 16, 16); c.shadowBlur = 0;
+                c.fillStyle = '#000'; c.font = 'bold 11px sans-serif'; c.textAlign = 'center'; c.fillText(d.kind === 'heal' ? '+' : '$', d.x + 8, d.y + 12); c.textAlign = 'left';
+            }
+ 
+            for (const id in G.remote) {
+                const r = G.remote[id];
+                c.fillStyle = r.color || '#a855f7'; c.fillRect(r.x, r.y, 30, 30);
+                c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.strokeRect(r.x, r.y, 30, 30);
+                c.fillStyle = r.adm ? '#fbbf24' : '#fff'; c.font = '10px sans-serif'; c.textAlign = 'center';
+                c.fillText((r.adm ? '👑' : '') + (r.name || '?'), r.x + 15, r.y - 8); c.textAlign = 'left';
+                c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(r.x, r.y - 5, 30, 3);
+                c.fillStyle = '#22c55e'; c.fillRect(r.x, r.y - 5, 30 * Math.max(0, (r.hp || 0) / 100), 3);
+            }
+ 
+            const me = G.me;
+            if (!G.dead && (me.inv % 6 < 3 || me.inv === 0)) {
+                c.fillStyle = isAdmin ? '#fbbf24' : '#00e5ff'; c.fillRect(me.x, me.y, me.w, me.h);
+                c.strokeStyle = '#fff'; c.lineWidth = 2; c.strokeRect(me.x, me.y, me.w, me.h);
+                const cx = me.x + 15, cy = me.y + 15, dx = G.mouse.x - cx, dy = G.mouse.y - cy, l = Math.hypot(dx, dy) || 1;
+                c.strokeStyle = '#fff'; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + dx / l * 22, cy + dy / l * 22); c.stroke();
+                c.fillStyle = '#facc15'; c.font = '10px sans-serif'; c.textAlign = 'center';
+                c.fillText((isAdmin ? '👑' : '') + (myNickname || ''), cx, me.y - 8); c.textAlign = 'left';
+            }
+ 
+            for (const b of G.bullets) {
+                c.fillStyle = b.enemy ? '#ef4444' : b.color;
+                c.fillRect(b.x - (b.size || 4) / 2, b.y - (b.size || 4) / 2, b.size || 4, b.size || 4);
+            }
+ 
+            for (const e of G.enemies) {
+                c.fillStyle = e.type === 'fast' ? '#f97316' : e.type === 'tank' ? '#991b1b' : e.type === 'shooter' ? '#a855f7' : '#ec4899';
+                c.fillRect(e.x, e.y, e.w, e.h);
+                c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(e.x, e.y - 6, e.w, 4);
+                c.fillStyle = '#22c55e'; c.fillRect(e.x, e.y - 6, e.w * Math.max(0, e.hp / e.maxHp), 4);
+            }
+ 
+            const B = G.boss;
+            if (B) {
+                c.fillStyle = '#a855f7'; c.fillRect(B.x, B.y, B.w, B.h);
+                c.strokeStyle = '#c084fc'; c.lineWidth = 3; c.strokeRect(B.x, B.y, B.w, B.h);
+                c.fillStyle = 'rgba(15,23,42,.85)'; c.fillRect(60, 52, 280, 14);
+                c.fillStyle = '#a855f7'; c.fillRect(60, 52, 280 * Math.max(0, B.hp / B.maxHp), 14);
+                c.strokeStyle = '#fff'; c.lineWidth = 1; c.strokeRect(60, 52, 280, 14);
+                c.fillStyle = '#fff'; c.font = 'bold 11px sans-serif'; c.textAlign = 'center'; c.fillText('霸主 BOSS', 200, 48); c.textAlign = 'left';
+            }
+ 
+            // HUD
+            c.fillStyle = 'rgba(10,15,29,.9)'; c.fillRect(0, 0, S_W, 36);
+            c.fillStyle = '#7f1d1d'; c.fillRect(8, 9, 110, 16);
+            c.fillStyle = '#22c55e'; c.fillRect(8, 9, 110 * Math.max(0, me.hp / me.maxHp), 16);
+            c.strokeStyle = '#fff'; c.lineWidth = 1; c.strokeRect(8, 9, 110, 16);
+            c.fillStyle = '#fff'; c.font = 'bold 11px sans-serif';
+            c.fillText('HP ' + Math.max(0, Math.floor(me.hp)), 14, 21);
+            c.fillText('分 ' + G.score, 128, 21);
+            c.fillText('$' + G.money, 188, 21);
+            c.fillText(WEAPONS[G.weapon].name + ' Lv' + G.wl[G.weapon], 245, 21);
+            c.fillStyle = '#64748b'; c.font = '10px sans-serif'; c.fillText('FPS ' + G.fps, 352, 21);
+ 
+            const lb = [{ n: myNickname || '我', s: G.score, me: true }];
+            for (const id in G.remote) lb.push({ n: G.remote[id].name || '?', s: G.remote[id].score || 0 });
+            lb.sort((a, b) => b.s - a.s);
+            c.fillStyle = 'rgba(10,15,30,.6)'; c.fillRect(S_W - 118, 42, 112, 14 + Math.min(3, lb.length) * 14);
+            c.font = '10px sans-serif';
+            lb.slice(0, 3).forEach((p, i) => { c.fillStyle = p.me ? '#facc15' : '#cbd5e1'; c.fillText((i + 1) + '. ' + String(p.n).slice(0, 8) + ' ' + p.s, S_W - 112, 58 + i * 14); });
+ 
+            if (G.joy) {
+                c.globalAlpha = .35; c.strokeStyle = '#fff'; c.lineWidth = 2;
+                c.beginPath(); c.arc(G.joy.ox, G.joy.oy, 34, 0, 6.283); c.stroke();
+                c.beginPath(); c.arc(G.joy.ox + G.joy.dx * 28, G.joy.oy + G.joy.dy * 28, 14, 0, 6.283); c.fill();
+                c.globalAlpha = 1;
+            }
+ 
+            if (G.dead) {
+                c.fillStyle = 'rgba(0,0,0,.8)'; c.fillRect(0, 0, S_W, S_H);
+                c.fillStyle = '#ef4444'; c.font = 'bold 26px sans-serif'; c.textAlign = 'center';
+                c.fillText('陣亡', S_W / 2, S_H / 2 - 10);
+                c.fillStyle = '#fff'; c.font = '14px sans-serif';
+                c.fillText('重生倒數 ' + Math.ceil(G.respawn / 60) + ' 秒', S_W / 2, S_H / 2 + 20);
+                c.textAlign = 'left';
+            }
+            c.restore();
+        }
+ 
+        function sLoop(t) {
+            if (!G.running) { G.raf = null; return; }
+            G.frames++;
+            if (t - G.fpsT > 1000) { G.fps = G.frames; G.frames = 0; G.fpsT = t; }
+            try { sUpdate(); sDraw(); } catch (e) { console.error('[shooter]', e); }
+            G.raf = requestAnimationFrame(sLoop);
+        }
+ 
+        // ---- 開關 ----
+        async function openShooter() {
+            if (!myUid) return;
+            shooterWindow.style.display = 'flex';
+            sFit();
+            shAdminBtn.style.display = isAdmin ? 'inline-block' : 'none';
+            await sLoadSave();
+            sRenderWeapons();
+            sJoin(parseInt(shChannel.value, 10) || 1);
+            G.running = true;
+            if (!G.raf) G.raf = requestAnimationFrame(sLoop);
+            G.hb = setInterval(sSync, 15000);
+            G.saveTimer = setInterval(sSave, 5000);
+        }
+        function closeShooter() {
+            if (shooterWindow.style.display !== 'flex' && !G.running) return;
+            G.running = false;
+            if (G.raf) { cancelAnimationFrame(G.raf); G.raf = null; }
+            if (G.hb) { clearInterval(G.hb); G.hb = null; }
+            if (G.saveTimer) { clearInterval(G.saveTimer); G.saveTimer = null; }
+            G.dirty = true; sSave();
+            sLeaveRoom();
+            G.shooting = false; G.keys = {}; G.joy = null;
+            G.shopOpen = false; G.adminOpen = false;
+            shShop.style.display = 'none'; shAdmin.style.display = 'none';
+            shooterWindow.style.display = 'none';
+        }
+ 
+        shooterEntry.addEventListener('click', openShooter);
+        document.getElementById('sh-back-btn').addEventListener('click', closeShooter);
+        shChannel.addEventListener('change', () => { if (G.running) sJoin(parseInt(shChannel.value, 10) || 1); });
+ 
+        // ---- 武器列 ----
+        function sRenderWeapons() {
+            shWeapons.innerHTML = '';
+            WORDER.forEach((w, i) => {
+                const b = document.createElement('button');
+                b.textContent = (i + 1) + ' ' + WEAPONS[w].name;
+                if (w === G.weapon) b.className = 'active';
+                b.addEventListener('click', () => { G.weapon = w; sRenderWeapons(); });
+                shWeapons.appendChild(b);
+            });
+        }
+ 
+        // ---- 商店 ----
+        function sRenderShop() {
+            document.getElementById('sh-money-txt').textContent = G.money;
+            const list = document.getElementById('sh-shop-list');
+            list.innerHTML = '';
+            const items = [
+                { name: '急救包 (+30血)', cost: 8, act: () => { G.me.hp = Math.min(G.me.maxHp, G.me.hp + 30); } },
+                ...WORDER.map((w, i) => ({ name: `升級${WEAPONS[w].name} Lv.${G.wl[w] + 1}`, cost: [12, 20, 30, 40, 50, 65][i], act: () => { G.wl[w]++; } })),
+                { name: `裝甲 +1（現 ${G.eq.armor}）`, cost: 15, act: () => { G.eq.armor++; } },
+                { name: `戰術靴 +0.4 速（現 ${G.eq.speed.toFixed(1)}）`, cost: 20, act: () => { G.eq.speed += .4; } },
+                { name: G.eq.dbl ? '雙發晶片（已擁有）' : '雙發晶片', cost: 60, disabled: G.eq.dbl, act: () => { G.eq.dbl = true; } }
+            ];
+            items.forEach(it => {
+                const row = document.createElement('div');
+                row.className = 'sh-item';
+                const left = document.createElement('div'); left.textContent = it.name;
+                const btn = document.createElement('button'); btn.textContent = '$' + it.cost;
+                btn.disabled = !!it.disabled || G.money < it.cost;
+                btn.addEventListener('click', () => {
+                    if (G.money < it.cost) return;
+                    G.money -= it.cost; it.act(); G.dirty = true; sSave(); sBeep(660, 0.08); sRenderShop();
+                });
+                row.append(left, btn);
+                list.appendChild(row);
+            });
+        }
+        function sToggleShop(force) {
+            G.shopOpen = force != null ? force : !G.shopOpen;
+            shShop.style.display = G.shopOpen ? 'flex' : 'none';
+            if (G.shopOpen) { G.shooting = false; G.adminOpen = false; shAdmin.style.display = 'none'; sRenderShop(); }
+        }
+        function sToggleAdmin(force) {
+            if (!isAdmin) return;
+            G.adminOpen = force != null ? force : !G.adminOpen;
+            shAdmin.style.display = G.adminOpen ? 'flex' : 'none';
+            if (G.adminOpen) { G.shooting = false; G.shopOpen = false; shShop.style.display = 'none'; }
+        }
+        document.getElementById('sh-shop-btn').addEventListener('click', () => sToggleShop());
+        document.getElementById('sh-shop-close').addEventListener('click', () => sToggleShop(false));
+        shAdminBtn.addEventListener('click', () => sToggleAdmin());
+        document.getElementById('sh-admin-close').addEventListener('click', () => sToggleAdmin(false));
+ 
+        // ---- 管理員特權（沿用聊天室管理員身分）----
+        const sAdminActs = {
+            money: () => { G.money += 500; G.dirty = true; },
+            heal: () => { G.me.hp = G.me.maxHp; G.me.inv = Math.max(G.me.inv, 60); },
+            invincible: () => { G.fx.inv = 60 * 30; },
+            killall: () => { const list = G.enemies; G.enemies = []; list.forEach(sEnemyDied); G.shake = 12; },
+            upgrade: () => { WORDER.forEach(w => G.wl[w] += 5); G.dirty = true; },
+            onekill: () => { G.fx.onekill = !G.fx.onekill; },
+            quick: () => { G.fx.quick = 60 * 10; },
+            spawnboss: () => { if (G.boss) return; G.lastBoss = 0; sTrySpawnBoss(Math.max(1, Math.floor(G.top / 40) + 1)); },
+            clearboss: () => { remove(ref(db, `${sRoot()}/boss`)).catch(() => {}); G.boss = null; },
+            clearroom: () => {
+                if (!confirm('清空本頻道的 BOSS 與死亡標記？（不會踢人）')) return;
+                update(ref(db, sRoot()), { boss: null, deadEnemies: null }).catch(() => {});
+                G.boss = null; G.killSet = new Set(); G.spawned = new Set(); G.enemies = [];
+            }
+        };
+        shAdmin.querySelectorAll('[data-sa]').forEach(btn => btn.addEventListener('click', () => {
+            if (!isAdmin) return;
+            const f = sAdminActs[btn.dataset.sa];
+            if (f) { f(); sBeep(660, 0.06); }
+        }));
+ 
+        // ---- 輸入：鍵盤 / 滑鼠 / 觸控 ----
+        document.addEventListener('keydown', e => {
+            if (shooterWindow.style.display !== 'flex') return;
+            const a = document.activeElement;
+            if (a && (a.tagName === 'INPUT' || a.tagName === 'SELECT' || a.tagName === 'TEXTAREA')) return;
+            G.keys[e.code] = true;
+            if (e.code === 'KeyB') sToggleShop();
+            if (e.code === 'KeyK') sToggleAdmin();
+            if (e.code === 'Escape') { sToggleShop(false); sToggleAdmin(false); }
+            const di = ['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6'].indexOf(e.code);
+            if (di >= 0 && !G.shopOpen && !G.adminOpen) { G.weapon = WORDER[di]; sRenderWeapons(); }
+            if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
+        });
+        document.addEventListener('keyup', e => { G.keys[e.code] = false; });
+        window.addEventListener('blur', () => { G.keys = {}; G.shooting = false; });
+ 
+        shooterCanvas.addEventListener('mousemove', e => { const p = sPos(e.clientX, e.clientY); G.mouse.x = p.x; G.mouse.y = p.y; });
+        shooterCanvas.addEventListener('mousedown', e => { if (e.button === 0 && !G.shopOpen && !G.adminOpen) G.shooting = true; });
+        window.addEventListener('mouseup', e => { if (e.button === 0) G.shooting = false; });
+ 
+        shooterCanvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            for (const t of e.changedTouches) {
+                const p = sPos(t.clientX, t.clientY);
+                if (p.x < S_W * 0.4 && p.y > S_H * 0.45 && !G.joy) G.joy = { id: t.identifier, ox: p.x, oy: p.y, dx: 0, dy: 0 };
+                else if (G.aimId == null) { G.aimId = t.identifier; G.mouse.x = p.x; G.mouse.y = p.y; if (!G.shopOpen && !G.adminOpen) G.shooting = true; }
+            }
+        }, { passive: false });
+        shooterCanvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            for (const t of e.changedTouches) {
+                const p = sPos(t.clientX, t.clientY);
+                if (G.joy && t.identifier === G.joy.id) {
+                    G.joy.dx = Math.max(-1, Math.min(1, (p.x - G.joy.ox) / 34));
+                    G.joy.dy = Math.max(-1, Math.min(1, (p.y - G.joy.oy) / 34));
+                } else if (t.identifier === G.aimId) { G.mouse.x = p.x; G.mouse.y = p.y; }
+            }
+        }, { passive: false });
+        const sTouchEnd = e => {
+            for (const t of e.changedTouches) {
+                if (G.joy && t.identifier === G.joy.id) G.joy = null;
+                if (t.identifier === G.aimId) { G.aimId = null; G.shooting = false; }
+            }
+        };
+        shooterCanvas.addEventListener('touchend', sTouchEnd);
+        shooterCanvas.addEventListener('touchcancel', sTouchEnd);
+ 
+        window.addEventListener('beforeunload', () => { G.dirty = true; sSave(); });
+</script>
+</body>
+</html>
